@@ -6,17 +6,34 @@
 </head>
 <body>
 <form id="form">
-    <input id="code" type="text"/>
-    <input type="submit" value="run"/>
     <pre><output id="output"></output></pre>
+    <p>
+        <label for="code" style="display: none;">code</label>
+        <input id="code" type="text"></input>
+    </p>
+    <input type="submit" value="run"/>
 </form>
 <script type="module">
     import * as Interpreter from "./index.js";
+    const output = document.getElementById("output");
+    const code = document.getElementById("code");
+
+    document.getElementById("code").addEventListener('keydown', function(event) {
+        if (event.key === "Enter" && event.ctrlKey) {
+            repl()
+        }
+    });
+
+    function repl() {
+        const result = Interpreter.interpret_expr(code.value)
+        const tail = ">>> " + code.value + "\n" + Interpreter.print(result) + "\n"
+        output.innerText = output.innerText + tail
+        code.value = ""
+    }
+
     document.getElementById("form").addEventListener("submit", (event) => {
         event.preventDefault()
-        const code = document.getElementById("code");
-        const result = Interpreter.interpret_expr(code.value)
-        document.getElementById("output").innerText = Interpreter.print(result)
+        repl();
     })
 </script>
 </body>

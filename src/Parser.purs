@@ -5,10 +5,23 @@ import Prelude
 import Data.Int (fromString)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Tuple (snd)
-import PureScript.CST (RecoveredParserResult(ParseSucceeded), parseExpr)
-import PureScript.CST.Types (AppSpine(AppTerm), Binder(BinderVar), Expr(..), Ident(Ident), IntValue(..), Name(Name), QualifiedName(QualifiedName), Separated(Separated), Wrapped(Wrapped)) as CST
+import PureScript.CST (RecoveredParserResult(ParseSucceeded), parseDecl, parseExpr)
+import PureScript.CST.Types (AppSpine(AppTerm), Binder(BinderVar), Declaration(DeclValue), Expr(..), Guarded(Unconditional), Ident(Ident), IntValue(..), Name(Name), QualifiedName(QualifiedName), Separated(Separated), Where(Where), Wrapped(Wrapped)) as CST
 import Data.Array (intercalate)
 import Data.Array.NonEmpty.Internal (NonEmptyArray(NonEmptyArray))
+import PureScript.CST.Types (Ident(Ident))
+
+data Declaration
+  = DeclarationError
+  | DeclarationValue String Expr
+
+instance Show Declaration where
+  show DeclarationError = "<Error>"
+  show (DeclarationValue name value) = name <> " = " <> show value
+
+instance Eq Declaration where
+  eq (DeclarationValue name value) (DeclarationValue name_ value_) = name_ == name && value == value_
+  eq _ _ = false
 
 data Expr
   = ExprError
@@ -66,10 +79,11 @@ instance Eq Value where
 
 parse_expression :: String -> Expr
 parse_expression expr = case parseExpr expr of
-  ParseSucceeded e -> fromCST e
+  ParseSucceeded e -> expression_from_CST e
   _ -> ExprError
-  where
-  fromCST e = case e of
+
+expression_from_CST :: CST.Expr Void -> Expr
+expression_from_CST e = case e of
     CST.ExprBoolean _ b -> ExprValue $ ValueBoolean b
     CST.ExprChar _ s -> ExprValue $ ValueChar s
     CST.ExprNumber _ s -> ExprValue $ ValueNumber s
@@ -80,11 +94,23 @@ parse_expression expr = case parseExpr expr of
     CST.ExprString _ s -> ExprValue $ ValueString s
     CST.ExprArray (CST.Wrapped { value: Nothing }) -> ExprValue $ ValueArray []
     CST.ExprArray (CST.Wrapped { value: Just (CST.Separated { head, tail }) }) ->
-      ExprArray ([ fromCST head ] <> (tail <#> snd <#> fromCST))
+      ExprArray ([ expression_from_CST head ] <> (tail <#> snd <#> expression_from_CST))
     CST.ExprIdent (CST.QualifiedName { name: CST.Ident name }) -> ExprIdentifier name
-    CST.ExprLambda { binders: NonEmptyArray [ CST.BinderVar (CST.Name {name: CST.Ident name} ) ], body } ->
-      ExprValue (ValueLambda name (fromCST body))
-    CST.ExprApp f (NonEmptyArray [CST.AppTerm a]) -> ExprApp (fromCST f) (fromCST a)
-    CST.ExprParens (CST.Wrapped {value: cst}) -> fromCST cst
+    CST.ExprLambda { binders: NonEmptyArray [ CST.BinderVar (CST.Name { name: CST.Ident name }) ], body } ->
+      ExprValue (ValueLambda name (expression_from_CST body))
+    CST.ExprApp f (NonEmptyArray [ CST.AppTerm a ]) -> ExprApp (expression_from_CST f) (expression_from_CST a)
+    CST.ExprParens (CST.Wrapped { value: cst }) -> expression_from_CST cst
     _ -> ExprError
 
+parse_declaration :: String -> Declaration
+parse_declaration declaration = case parseDecl declaration of
+  ParseSucceeded decl -> fromCST decl
+  _ -> DeclarationError
+  where
+  fromCST = case _ of
+    CST.DeclValue
+      { name: CST.Name { name: Ident name }
+      , guarded: CST.Unconditional _ (CST.Where {expr})
+      } ->
+      DeclarationValue name (expression_from_CST expr)
+    _ -> DeclarationError

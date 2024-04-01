@@ -4,17 +4,22 @@ import Prelude
 
 import Effect (Effect)
 import Effect.Aff (launchAff_)
-import Test.Spec.Runner (runSpec)
-import Test.Spec (describe, it)
 import Interpreter (evaluate_expr)
+import Parser (Declaration(..), Expr(..), Value(..), parse_declaration, parse_expression)
+import Test.Spec (describe, it)
 import Test.Spec.Assertions (shouldEqual)
-import Parser (Expr(..), Value(..), parse_expression)
-import Data.Map.Internal (empty, singleton) as Map
 import Test.Spec.Reporter.Spec (specReporter)
+import Test.Spec.Runner (runSpec)
+import Data.Map.Internal (empty, singleton) as Map
 
 main :: Effect Unit
 main = launchAff_ $ runSpec [ specReporter ] do
-  let simple_eval expr = evaluate_expr Map.empty (parse_expression expr)
+  describe "declaration parser" do
+    it "parses value declarations" do
+        let
+            expression = ExprValue (ValueInt 42)
+            declaration = DeclarationValue "x" expression
+        parse_declaration "x = 42" # shouldEqual declaration
   describe "expression parser" do
     it "parses identifiers" do
         parse_expression "x" # shouldEqual (ExprIdentifier "x")
@@ -24,6 +29,7 @@ main = launchAff_ $ runSpec [ specReporter ] do
         parse_expression "f x" # shouldEqual (ExprApp (ExprIdentifier "f") (ExprIdentifier "x"))
 
   describe "expression interptreter" do
+    let simple_eval expr = evaluate_expr Map.empty (parse_expression expr)
     it "handle identifiers" do
         let
             x = ValueInt 42

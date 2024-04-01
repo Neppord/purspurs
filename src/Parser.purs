@@ -6,7 +6,27 @@ import Data.Int (fromString)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Tuple (snd)
 import PureScript.CST (RecoveredParserResult(ParseSucceeded), parseExpr)
-import PureScript.CST.Types (Expr(..), IntValue(..), Separated(Separated), Wrapped(Wrapped)) as CST
+import PureScript.CST.Types (Expr(..), Ident(Ident), IntValue(..), QualifiedName(QualifiedName), Separated(Separated), Wrapped(Wrapped)) as CST
+import Data.Array (intercalate)
+
+data Expr
+  = ExprError
+  | ExprIdentifier String
+  | ExprValue Value
+  | ExprArray (Array Expr)
+
+instance Show Expr where
+    show ExprError = "<Error>"
+    show (ExprValue value) = show value
+    show (ExprIdentifier identifier) = identifier
+    show (ExprArray array ) = "[" <> intercalate ", " (array <#> show) <> "]"
+
+
+instance Eq Expr where
+    eq (ExprIdentifier x) (ExprIdentifier y) = x == y
+    eq (ExprValue x) (ExprValue y) = x == y
+    eq (ExprArray x) (ExprArray y) = x == y
+    eq _ _ = false
 
 data Value
   = ValueVoid
@@ -17,11 +37,6 @@ data Value
   | ValueNumber Number
   | ValueString String
   | ValueArray (Array Value)
-
-data Expr
-  = ExprError
-  | ExprValue Value
-  | ExprArray (Array Expr)
 
 instance Show Value where
   show ValueVoid = "Void"
@@ -60,4 +75,5 @@ parse_expression expr = case parseExpr expr of
     CST.ExprArray (CST.Wrapped { value: Nothing }) -> ExprValue $ ValueArray []
     CST.ExprArray (CST.Wrapped { value: Just (CST.Separated { head, tail }) }) ->
       ExprArray ([ fromCST head ] <> (tail <#> snd <#> fromCST))
+    CST.ExprIdent (CST.QualifiedName { name: CST.Ident name }) -> ExprIdentifier name
     _ -> ExprError

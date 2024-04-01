@@ -9,11 +9,15 @@ import Test.Spec.Reporter.TeamCity (teamcityReporter)
 import Test.Spec (describe, it)
 import Interpreter (interpret_expr)
 import Test.Spec.Assertions (shouldEqual)
-import Parser (Value(..), parse_expression)
+import Parser (Expr(..), Value(..), parse_expression)
 
 main :: Effect Unit
 main = launchAff_ $ runSpec [ teamcityReporter ] do
   let simple_eval expr = interpret_expr {} (parse_expression expr)
+  describe "expression parser" do
+    it "parses identifiers" do
+        parse_expression "x" # shouldEqual (ExprIdentifier "x")
+
   describe "expression interptreter" do
     describe "handle literals" do
       it "handles Boolean" do

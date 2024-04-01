@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Try it out</title>
+</head>
+<body>
+<form id="form">
+    <input id="code" type="text"/>
+    <input type="submit" value="run"/>
+    <pre><output id="output"></output></pre>
+</form>
+<script type="module">
+    import * as Interpreter from "./index.js";
+    document.getElementById("form").addEventListener("submit", (event) => {
+        event.preventDefault()
+        const code = document.getElementById("code");
+        const result = Interpreter.interpret_expr(code.value)
+        document.getElementById("output").innerText = Interpreter.print(result)
+    })
+</script>
+</body>
+</html>

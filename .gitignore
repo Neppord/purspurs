@@ -7,3 +7,5 @@ node_modules
 # Generated files
 .psci
 output
+/index.js
+/index.js.map

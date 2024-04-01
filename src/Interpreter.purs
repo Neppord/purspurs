@@ -4,8 +4,8 @@ import Prelude
 
 import Data.Map.Internal (Map)
 import Data.Maybe (Maybe(..))
-import Parser (Expr(..), Value(..))
-import Data.Map.Internal (insert, lookup) as Map
+import Parser (Expr(..), Value(..), parse_expression)
+import Data.Map.Internal (empty, insert, lookup) as Map
 
 type Env = Map String Value
 
@@ -21,3 +21,9 @@ evaluate_expr env (ExprIdentifier key) = case Map.lookup key env of
   Nothing -> ValueError
 evaluate_expr env (ExprArray values) = ValueArray (values <#> evaluate_expr env)
 evaluate_expr _ _ = ValueError
+
+interpret_expr :: String -> Value
+interpret_expr expr = evaluate_expr Map.empty (parse_expression expr)
+
+print :: Value -> String
+print v = show v

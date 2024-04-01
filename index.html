@@ -32,6 +32,8 @@
 <script type="module">
     import * as Interpreter from "./index.js";
 
+    let env = Interpreter.default_env
+
     const output = document.getElementById("output");
     const code = document.getElementById("code");
 
@@ -42,8 +44,8 @@
     });
 
     function repl() {
-        const result = Interpreter.interpret_expr(code.value)
-        const tail = ">>> " + code.value + "\n" + Interpreter.print(result) + "\n"
+        env = Interpreter.evaluate(code.value)(env)
+        const tail = ">>> " + code.value + "\n" + Interpreter.print(env) + "\n"
         output.innerText = output.innerText + tail
         code.value = ""
     }

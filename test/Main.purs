@@ -17,6 +17,10 @@ main = launchAff_ $ runSpec [ teamcityReporter ] do
   describe "expression parser" do
     it "parses identifiers" do
         parse_expression "x" # shouldEqual (ExprIdentifier "x")
+    it "parses lambda" do
+        parse_expression "\\x -> x" # shouldEqual (ExprLambda "x" (ExprIdentifier "x"))
+    it "parses app" do
+        parse_expression "f x" # shouldEqual (ExprApp (ExprIdentifier "f") (ExprIdentifier "x"))
 
   describe "expression interptreter" do
     describe "handle literals" do

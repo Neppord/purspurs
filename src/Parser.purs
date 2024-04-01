@@ -6,27 +6,33 @@ import Data.Int (fromString)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Tuple (snd)
 import PureScript.CST (RecoveredParserResult(ParseSucceeded), parseExpr)
-import PureScript.CST.Types (Expr(..), Ident(Ident), IntValue(..), QualifiedName(QualifiedName), Separated(Separated), Wrapped(Wrapped)) as CST
+import PureScript.CST.Types (AppSpine(AppTerm), Binder(BinderVar), Expr(..), Ident(Ident), IntValue(..), Name(Name), QualifiedName(QualifiedName), Separated(Separated), Wrapped(Wrapped)) as CST
 import Data.Array (intercalate)
+import Data.Array.NonEmpty.Internal (NonEmptyArray(NonEmptyArray))
 
 data Expr
   = ExprError
   | ExprIdentifier String
   | ExprValue Value
   | ExprArray (Array Expr)
+  | ExprLambda String Expr
+  | ExprApp Expr Expr
 
 instance Show Expr where
-    show ExprError = "<Error>"
-    show (ExprValue value) = show value
-    show (ExprIdentifier identifier) = identifier
-    show (ExprArray array ) = "[" <> intercalate ", " (array <#> show) <> "]"
-
+  show ExprError = "<Error>"
+  show (ExprValue value) = show value
+  show (ExprApp f x) = "(" <> (show f) <> " " <> (show x) <> ")"
+  show (ExprIdentifier identifier) = identifier
+  show (ExprArray array) = "[" <> intercalate ", " (array <#> show) <> "]"
+  show (ExprLambda param expr) = "(\\" <> param <> " -> " <> show expr <> ")"
 
 instance Eq Expr where
-    eq (ExprIdentifier x) (ExprIdentifier y) = x == y
-    eq (ExprValue x) (ExprValue y) = x == y
-    eq (ExprArray x) (ExprArray y) = x == y
-    eq _ _ = false
+  eq (ExprIdentifier x) (ExprIdentifier y) = x == y
+  eq (ExprValue x) (ExprValue y) = x == y
+  eq (ExprApp f x) (ExprApp g y) = x == y && f == g
+  eq (ExprArray x) (ExprArray y) = x == y
+  eq (ExprLambda param expr) (ExprLambda param_ expr_) = param == param_ && expr == expr_
+  eq _ _ = false
 
 data Value
   = ValueVoid
@@ -76,4 +82,8 @@ parse_expression expr = case parseExpr expr of
     CST.ExprArray (CST.Wrapped { value: Just (CST.Separated { head, tail }) }) ->
       ExprArray ([ fromCST head ] <> (tail <#> snd <#> fromCST))
     CST.ExprIdent (CST.QualifiedName { name: CST.Ident name }) -> ExprIdentifier name
+    CST.ExprLambda { binders: NonEmptyArray [ CST.BinderVar (CST.Name {name: CST.Ident name} ) ], body } ->
+      ExprLambda name (fromCST body)
+    CST.ExprApp f (NonEmptyArray [CST.AppTerm a]) -> ExprApp (fromCST f) (fromCST a)
     _ -> ExprError
+

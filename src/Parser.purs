@@ -2,11 +2,11 @@ module Parser where
 
 import Prelude
 
-import Data.Maybe (Maybe(Just), Maybe(Nothing), maybe)
-import Data.Tuple (snd)
-import PureScript.CST.Types (Expr(..), IntValue(SmallInt), IntValue(BigInt), IntValue(BigHex), Separated(Separated), Wrapped(Wrapped)) as CST
-import PureScript.CST (RecoveredParserResult(ParseSucceeded), parseExpr)
 import Data.Int (fromString)
+import Data.Maybe (Maybe(..), maybe)
+import Data.Tuple (snd)
+import PureScript.CST (RecoveredParserResult(ParseSucceeded), parseExpr)
+import PureScript.CST.Types (Expr(..), IntValue(..), Separated(Separated), Wrapped(Wrapped)) as CST
 
 data Value
   = ValueVoid
@@ -43,6 +43,7 @@ instance Eq Value where
   eq (ValueArray x) (ValueArray y) = x == y
   eq _ _ = false
 
+parse_expression :: String -> Expr
 parse_expression expr = case parseExpr expr of
   ParseSucceeded e -> fromCST e
   _ -> ExprError
@@ -52,9 +53,9 @@ parse_expression expr = case parseExpr expr of
     CST.ExprChar _ s -> ExprValue $ ValueChar s
     CST.ExprNumber _ s -> ExprValue $ ValueNumber s
     CST.ExprInt _ s -> ExprValue case s of
-        CST.SmallInt i -> ValueInt i
-        CST.BigInt i -> fromString i # maybe ValueError ValueInt
-        CST.BigHex i -> fromString i # maybe ValueError ValueInt
+      CST.SmallInt i -> ValueInt i
+      CST.BigInt i -> fromString i # maybe ValueError ValueInt
+      CST.BigHex i -> fromString i # maybe ValueError ValueInt
     CST.ExprString _ s -> ExprValue $ ValueString s
     CST.ExprArray (CST.Wrapped { value: Nothing }) -> ExprValue $ ValueArray []
     CST.ExprArray (CST.Wrapped { value: Just (CST.Separated { head, tail }) }) ->

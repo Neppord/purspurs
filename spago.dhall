@@ -19,6 +19,7 @@ to generate this file without the comments in this block.
   , "integers"
   , "language-cst-parser"
   , "maybe"
+  , "ordered-collections"
   , "prelude"
   , "spec"
   , "tuples"

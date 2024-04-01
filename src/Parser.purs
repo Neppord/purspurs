@@ -85,5 +85,6 @@ parse_expression expr = case parseExpr expr of
     CST.ExprLambda { binders: NonEmptyArray [ CST.BinderVar (CST.Name {name: CST.Ident name} ) ], body } ->
       ExprValue (ValueLambda name (fromCST body))
     CST.ExprApp f (NonEmptyArray [CST.AppTerm a]) -> ExprApp (fromCST f) (fromCST a)
+    CST.ExprParens (CST.Wrapped {value: cst}) -> fromCST cst
     _ -> ExprError
 

@@ -15,6 +15,7 @@ to generate this file without the comments in this block.
   [ "aff"
   , "console"
   , "effect"
+  , "integers"
   , "language-cst-parser"
   , "maybe"
   , "prelude"

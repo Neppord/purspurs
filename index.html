@@ -3,22 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <title>Try it out</title>
+    <style>
+        #code-label, #code, #code:focus, #code:focus-visible, #code:focus-within {
+            font-family: monospace;
+            white-space: pre-wrap;
+            border: none;
+            box-shadow: none;
+            outline: none;
+        }
+        pre:has(#output) {
+            margin-bottom: 0;
+        }
+    </style>
 </head>
 <body>
 <form id="form">
     <pre><output id="output"></output></pre>
-    <p>
-        <label for="code" style="display: none;">code</label>
-        <input id="code" type="text"></input>
-    </p>
-    <input type="submit" value="run"/>
+    <label id="code-label" for="code">>>> </label>
+    <input id="code" type="text" autocomplete="off" autofocus/>
 </form>
 <script type="module">
     import * as Interpreter from "./index.js";
+
     const output = document.getElementById("output");
     const code = document.getElementById("code");
 
-    document.getElementById("code").addEventListener('keydown', function(event) {
+    document.getElementById("code").addEventListener('keydown', function (event) {
         if (event.key === "Enter" && event.ctrlKey) {
             repl()
         }

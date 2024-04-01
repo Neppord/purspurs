@@ -1,0 +1,2 @@
+# purspurs
+Purescript in Purescript

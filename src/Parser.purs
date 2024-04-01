@@ -15,7 +15,6 @@ data Expr
   | ExprIdentifier String
   | ExprValue Value
   | ExprArray (Array Expr)
-  | ExprLambda String Expr
   | ExprApp Expr Expr
 
 instance Show Expr where
@@ -24,14 +23,12 @@ instance Show Expr where
   show (ExprApp f x) = "(" <> (show f) <> " " <> (show x) <> ")"
   show (ExprIdentifier identifier) = identifier
   show (ExprArray array) = "[" <> intercalate ", " (array <#> show) <> "]"
-  show (ExprLambda param expr) = "(\\" <> param <> " -> " <> show expr <> ")"
 
 instance Eq Expr where
   eq (ExprIdentifier x) (ExprIdentifier y) = x == y
   eq (ExprValue x) (ExprValue y) = x == y
   eq (ExprApp f x) (ExprApp g y) = x == y && f == g
   eq (ExprArray x) (ExprArray y) = x == y
-  eq (ExprLambda param expr) (ExprLambda param_ expr_) = param == param_ && expr == expr_
   eq _ _ = false
 
 data Value
@@ -43,6 +40,7 @@ data Value
   | ValueNumber Number
   | ValueString String
   | ValueArray (Array Value)
+  | ValueLambda String Expr
 
 instance Show Value where
   show ValueVoid = "Void"
@@ -53,6 +51,7 @@ instance Show Value where
   show (ValueNumber s) = show s
   show (ValueArray a) = show a
   show (ValueInt i) = show i
+  show (ValueLambda param expr) = "(\\" <> param <> " -> " <> show expr <> ")"
 
 instance Eq Value where
   eq ValueVoid ValueVoid = true
@@ -62,6 +61,7 @@ instance Eq Value where
   eq (ValueInt x) (ValueInt y) = x == y
   eq (ValueString x) (ValueString y) = x == y
   eq (ValueArray x) (ValueArray y) = x == y
+  eq (ValueLambda param expr) (ValueLambda param_ expr_) = param == param_ && expr == expr_
   eq _ _ = false
 
 parse_expression :: String -> Expr
@@ -83,7 +83,7 @@ parse_expression expr = case parseExpr expr of
       ExprArray ([ fromCST head ] <> (tail <#> snd <#> fromCST))
     CST.ExprIdent (CST.QualifiedName { name: CST.Ident name }) -> ExprIdentifier name
     CST.ExprLambda { binders: NonEmptyArray [ CST.BinderVar (CST.Name {name: CST.Ident name} ) ], body } ->
-      ExprLambda name (fromCST body)
+      ExprValue (ValueLambda name (fromCST body))
     CST.ExprApp f (NonEmptyArray [CST.AppTerm a]) -> ExprApp (fromCST f) (fromCST a)
     _ -> ExprError
 

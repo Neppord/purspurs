@@ -19,7 +19,7 @@ main = launchAff_ $ runSpec [ specReporter ] do
     it "parses identifiers" do
         parse_expression "x" # shouldEqual (ExprIdentifier "x")
     it "parses lambda" do
-        parse_expression "\\x -> x" # shouldEqual (ExprLambda "x" (ExprIdentifier "x"))
+        parse_expression "\\x -> x" # shouldEqual (ExprValue (ValueLambda "x" (ExprIdentifier "x")))
     it "parses app" do
         parse_expression "f x" # shouldEqual (ExprApp (ExprIdentifier "f") (ExprIdentifier "x"))
 
@@ -30,6 +30,13 @@ main = launchAff_ $ runSpec [ specReporter ] do
             ast = parse_expression "x"
             env = Map.singleton "x" x
         evaluate_expr env ast # shouldEqual x
+    it "applyes functions" do
+        let
+            f = ValueLambda "x" (ExprIdentifier "x")
+            ast = parse_expression "f 42"
+            env = Map.singleton "f" f
+        evaluate_expr env ast # shouldEqual (ValueInt 42)
+
     describe "handle literals" do
       it "handles Boolean" do
         simple_eval "true"

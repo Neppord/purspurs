@@ -6,7 +6,7 @@ import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Test.Spec.Runner (runSpec)
 import Test.Spec (describe, it)
-import Interpreter (interpret_expr)
+import Interpreter (evaluate_expr)
 import Test.Spec.Assertions (shouldEqual)
 import Parser (Expr(..), Value(..), parse_expression)
 import Data.Map.Internal (empty, singleton) as Map
@@ -14,7 +14,7 @@ import Test.Spec.Reporter.Spec (specReporter)
 
 main :: Effect Unit
 main = launchAff_ $ runSpec [ specReporter ] do
-  let simple_eval expr = interpret_expr Map.empty (parse_expression expr)
+  let simple_eval expr = evaluate_expr Map.empty (parse_expression expr)
   describe "expression parser" do
     it "parses identifiers" do
         parse_expression "x" # shouldEqual (ExprIdentifier "x")
@@ -29,7 +29,7 @@ main = launchAff_ $ runSpec [ specReporter ] do
             x = ValueInt 42
             ast = parse_expression "x"
             env = Map.singleton "x" x
-        interpret_expr env ast # shouldEqual x
+        evaluate_expr env ast # shouldEqual x
     describe "handle literals" do
       it "handles Boolean" do
         simple_eval "true"

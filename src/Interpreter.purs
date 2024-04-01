@@ -9,10 +9,10 @@ import Data.Map.Internal (lookup) as Map
 
 type Env = Map String Value
 
-interpret_expr :: Env -> Expr -> Value
-interpret_expr _ (ExprValue value) = value
-interpret_expr env (ExprIdentifier key) = case Map.lookup key env of
+evaluate_expr :: Env -> Expr -> Value
+evaluate_expr _ (ExprValue value) = value
+evaluate_expr env (ExprIdentifier key) = case Map.lookup key env of
   Just v -> v
   Nothing -> ValueError
-interpret_expr env (ExprArray values) = ValueArray (values <#> interpret_expr env)
-interpret_expr _ _ = ValueError
+evaluate_expr env (ExprArray values) = ValueArray (values <#> evaluate_expr env)
+evaluate_expr _ _ = ValueError

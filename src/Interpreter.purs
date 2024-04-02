@@ -6,7 +6,6 @@ import Data.Map.Internal (Map)
 import Data.Maybe (Maybe(..), maybe)
 import Parser (Declaration(..), Expr(..), Value(..), parse_declaration, parse_expression)
 import Data.Map.Internal (empty, insert, lookup) as Map
-import Data.Ord (lessThan)
 
 type Env = Map String Value
 

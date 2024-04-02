@@ -34,12 +34,18 @@ main = launchAff_ $ runSpec [ specReporter ] do
         declaration = DeclarationValue "f" expression
       parse_declaration "f x y = 42" # shouldEqual declaration
   describe "expression parser" do
+    let
+        f = ExprIdentifier "f"
+        x = ExprIdentifier "x"
+        y = ExprIdentifier "y"
     it "parses identifiers" do
-      parse_expression "x" # shouldEqual (ExprIdentifier "x")
+      parse_expression "x" # shouldEqual x
     it "parses lambda" do
-      parse_expression "\\x -> x" # shouldEqual (ExprValue (ValueLambda "x" (ExprIdentifier "x")))
+      parse_expression "\\x -> x" # shouldEqual (ExprValue (ValueLambda "x" x))
     it "parses app" do
-      parse_expression "f x" # shouldEqual (ExprApp (ExprIdentifier "f") (ExprIdentifier "x"))
+      parse_expression "f x" # shouldEqual (ExprApp f x)
+    it "parses chained app" do
+      parse_expression "f x y" # shouldEqual (ExprApp (ExprApp f x) y)
 
   describe "expression interptreter" do
     let simple_eval expr = evaluate_expr Map.empty (parse_expression expr)

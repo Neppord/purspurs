@@ -10,7 +10,7 @@ import PureScript.CST.Types (AppSpine(AppTerm), Binder(BinderVar), Declaration(D
 import Data.Array (intercalate)
 import Data.Array.NonEmpty.Internal (NonEmptyArray(NonEmptyArray))
 import PureScript.CST.Types (Ident(Ident))
-import Data.Array (fold, foldr) as Array
+import Data.Array (fold, foldl, foldr) as Array
 
 data Declaration
   = DeclarationError
@@ -85,23 +85,29 @@ parse_expression expr = case parseExpr expr of
 
 expression_from_CST :: CST.Expr Void -> Expr
 expression_from_CST e = case e of
-    CST.ExprBoolean _ b -> ExprValue $ ValueBoolean b
-    CST.ExprChar _ s -> ExprValue $ ValueChar s
-    CST.ExprNumber _ s -> ExprValue $ ValueNumber s
-    CST.ExprInt _ s -> ExprValue case s of
-      CST.SmallInt i -> ValueInt i
-      CST.BigInt i -> fromString i # maybe ValueError ValueInt
-      CST.BigHex i -> fromString i # maybe ValueError ValueInt
-    CST.ExprString _ s -> ExprValue $ ValueString s
-    CST.ExprArray (CST.Wrapped { value: Nothing }) -> ExprValue $ ValueArray []
-    CST.ExprArray (CST.Wrapped { value: Just (CST.Separated { head, tail }) }) ->
-      ExprArray ([ expression_from_CST head ] <> (tail <#> snd <#> expression_from_CST))
-    CST.ExprIdent (CST.QualifiedName { name: CST.Ident name }) -> ExprIdentifier name
-    CST.ExprLambda { binders: NonEmptyArray [ CST.BinderVar (CST.Name { name: CST.Ident name }) ], body } ->
-      ExprValue (ValueLambda name (expression_from_CST body))
-    CST.ExprApp f (NonEmptyArray [ CST.AppTerm a ]) -> ExprApp (expression_from_CST f) (expression_from_CST a)
-    CST.ExprParens (CST.Wrapped { value: cst }) -> expression_from_CST cst
-    _ -> ExprError
+  CST.ExprBoolean _ b -> ExprValue $ ValueBoolean b
+  CST.ExprChar _ s -> ExprValue $ ValueChar s
+  CST.ExprNumber _ s -> ExprValue $ ValueNumber s
+  CST.ExprInt _ s -> ExprValue case s of
+    CST.SmallInt i -> ValueInt i
+    CST.BigInt i -> fromString i # maybe ValueError ValueInt
+    CST.BigHex i -> fromString i # maybe ValueError ValueInt
+  CST.ExprString _ s -> ExprValue $ ValueString s
+  CST.ExprArray (CST.Wrapped { value: Nothing }) -> ExprValue $ ValueArray []
+  CST.ExprArray (CST.Wrapped { value: Just (CST.Separated { head, tail }) }) ->
+    ExprArray ([ expression_from_CST head ] <> (tail <#> snd <#> expression_from_CST))
+  CST.ExprIdent (CST.QualifiedName { name: CST.Ident name }) -> ExprIdentifier name
+  CST.ExprLambda { binders: NonEmptyArray [ CST.BinderVar (CST.Name { name: CST.Ident name }) ], body } ->
+    ExprValue (ValueLambda name (expression_from_CST body))
+  CST.ExprApp function (NonEmptyArray arguments) ->
+    arguments # Array.foldl
+      ( \f -> case _ of
+          CST.AppTerm a -> ExprApp f (expression_from_CST a)
+          _ -> ExprError
+      )
+      (expression_from_CST function)
+  CST.ExprParens (CST.Wrapped { value: cst }) -> expression_from_CST cst
+  _ -> ExprError
 
 parse_declaration :: String -> Declaration
 parse_declaration declaration = case parseDecl declaration of
@@ -112,13 +118,16 @@ parse_declaration declaration = case parseDecl declaration of
     CST.DeclValue
       { name: CST.Name { name: CST.Ident name }
       , binders
-      , guarded: CST.Unconditional _ (CST.Where {expr})
-      } -> let
+      , guarded: CST.Unconditional _ (CST.Where { expr })
+      } ->
+      let
         base_expression = expression_from_CST expr
-        expression = binders # Array.foldr case _ of
-                CST.BinderVar (CST.Name {name: CST.Ident param}) ->
-                    \body -> ExprValue (ValueLambda param body)
-                _ -> \_ -> ExprError
-            base_expression
-      in DeclarationValue name expression
+        expression = binders # Array.foldr
+          case _ of
+            CST.BinderVar (CST.Name { name: CST.Ident param }) ->
+              \body -> ExprValue (ValueLambda param body)
+            _ -> \_ -> ExprError
+          base_expression
+      in
+        DeclarationValue name expression
     _ -> DeclarationError

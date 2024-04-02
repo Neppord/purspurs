@@ -2,26 +2,31 @@ module Parser where
 
 import Prelude
 
-import Data.Int (fromString)
-import Data.Maybe (Maybe(..), maybe)
-import Data.Tuple (snd)
-import PureScript.CST (RecoveredParserResult(ParseSucceeded), parseDecl, parseExpr)
-import PureScript.CST.Types (AppSpine(AppTerm), Binder(BinderVar), Declaration(DeclValue), Expr(..), Guarded(Unconditional), Ident(Ident), IntValue(..), Name(Name), QualifiedName(QualifiedName), Separated(Separated), Where(Where), Wrapped(Wrapped)) as CST
 import Data.Array (intercalate)
 import Data.Array.NonEmpty.Internal (NonEmptyArray(NonEmptyArray))
-import PureScript.CST.Types (Ident(Ident))
-import Data.Array (fold, foldl, foldr) as Array
+import Data.Int (fromString)
+import Data.Maybe (Maybe(..), maybe)
+import Data.Tuple (Tuple(Tuple), snd)
+import Data.Tuple.Nested ((/\))
+import PureScript.CST (RecoveredParserResult(ParseSucceeded), parseDecl, parseExpr)
+import Data.Array (foldl, foldr, intercalate) as Array
+import PureScript.CST.Types (AppSpine(AppTerm), Binder(BinderVar), DataCtor(DataCtor), Declaration(DeclData, DeclValue), Expr(..), Guarded(Unconditional), Ident(Ident), IntValue(..), Name(Name), Proper(Proper), QualifiedName(QualifiedName), Separated(Separated), Where(Where), Wrapped(Wrapped)) as CST
 
 data Declaration
   = DeclarationError
   | DeclarationValue String Expr
+  | DeclarationData String (Array (Tuple String Value))
 
 instance Show Declaration where
   show DeclarationError = "<Error>"
   show (DeclarationValue name value) = name <> " = " <> show value
+  show (DeclarationData name constructors) = "data " <> name <> " = " <>
+    (constructors <#> show # Array.intercalate " | ")
 
 instance Eq Declaration where
   eq (DeclarationValue name value) (DeclarationValue name_ value_) = name_ == name && value == value_
+  eq (DeclarationData name constructors) (DeclarationData name_ constructors_) =
+    name_ == name && constructors == constructors_
   eq _ _ = false
 
 data Expr
@@ -55,6 +60,7 @@ data Value
   | ValueString String
   | ValueArray (Array Value)
   | ValueLambda String Expr
+  | ValueConstructor String (Array Value)
 
 instance Show Value where
   show ValueVoid = "Void"
@@ -66,6 +72,10 @@ instance Show Value where
   show (ValueArray a) = show a
   show (ValueInt i) = show i
   show (ValueLambda param expr) = "(\\" <> param <> " -> " <> show expr <> ")"
+  show (ValueConstructor name values) =
+    if values == [] then name
+    else
+      "(" <> name <> " " <> (values <#> show # Array.intercalate " ") <> ")"
 
 instance Eq Value where
   eq ValueVoid ValueVoid = true
@@ -76,6 +86,7 @@ instance Eq Value where
   eq (ValueString x) (ValueString y) = x == y
   eq (ValueArray x) (ValueArray y) = x == y
   eq (ValueLambda param expr) (ValueLambda param_ expr_) = param == param_ && expr == expr_
+  eq (ValueConstructor name values) (ValueConstructor name_ values_) = name == name_ && values == values_
   eq _ _ = false
 
 parse_expression :: String -> Expr
@@ -115,6 +126,11 @@ parse_declaration declaration = case parseDecl declaration of
   _ -> DeclarationError
   where
   fromCST = case _ of
+    CST.DeclData { name: CST.Name { name: CST.Proper name } } Nothing -> DeclarationData name []
+    CST.DeclData
+      { name: CST.Name { name: CST.Proper name } }
+      (Just (Tuple _ (CST.Separated { head: CST.DataCtor { name: CST.Name { name: CST.Proper constructor } } }))) ->
+      DeclarationData name [ constructor /\ ValueConstructor constructor [] ]
     CST.DeclValue
       { name: CST.Name { name: CST.Ident name }
       , binders

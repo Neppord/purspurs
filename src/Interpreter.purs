@@ -29,9 +29,12 @@ interpret_expr expr = evaluate_expr Map.empty (parse_expression expr)
 
 evaluate :: String -> Env -> Env
 evaluate s env = case parse_declaration s of
-  DeclarationValue name expr -> let
-    value = evaluate_expr env expr
-    in env
+  DeclarationData _ _ -> env
+  DeclarationValue name expr ->
+    let
+      value = evaluate_expr env expr
+    in
+      env
         # Map.insert name value
         # Map.insert "_" value
   DeclarationError -> env # Map.insert "_" (evaluate_expr env (parse_expression s))

@@ -2,6 +2,7 @@ module Test.Main where
 
 import Prelude
 
+import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Interpreter (evaluate_expr)
@@ -15,6 +16,10 @@ import Data.Map.Internal (empty, singleton) as Map
 main :: Effect Unit
 main = launchAff_ $ runSpec [ specReporter ] do
   describe "declaration parser" do
+    it "parses data declaration with one constructor" do
+      let
+        declaration = DeclarationData "Command" [ "Noop" /\ ValueConstructor "Noop" [] ]
+      parse_declaration "data Command = Noop" # shouldEqual declaration
     it "parses value declaration with no parameter" do
       let
         expression = ExprValue (ValueInt 42)
@@ -35,9 +40,9 @@ main = launchAff_ $ runSpec [ specReporter ] do
       parse_declaration "f x y = 42" # shouldEqual declaration
   describe "expression parser" do
     let
-        f = ExprIdentifier "f"
-        x = ExprIdentifier "x"
-        y = ExprIdentifier "y"
+      f = ExprIdentifier "f"
+      x = ExprIdentifier "x"
+      y = ExprIdentifier "y"
     it "parses identifiers" do
       parse_expression "x" # shouldEqual x
     it "parses lambda" do

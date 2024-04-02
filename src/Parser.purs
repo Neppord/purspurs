@@ -9,7 +9,7 @@ import Data.Maybe (Maybe(..), maybe)
 import Data.Tuple (Tuple(Tuple), snd)
 import Data.Tuple.Nested ((/\))
 import PureScript.CST (RecoveredParserResult(ParseSucceeded), parseDecl, parseExpr)
-import Data.Array (foldl, foldr, intercalate) as Array
+import Data.Array (foldl, foldr, intercalate, mapWithIndex) as Array
 import PureScript.CST.Types (AppSpine(AppTerm), Binder(BinderVar), DataCtor(DataCtor), Declaration(DeclData, DeclValue), Expr(..), Guarded(Unconditional), Ident(Ident), IntValue(..), Name(Name), Proper(Proper), QualifiedName(QualifiedName), Separated(Separated), Where(Where), Wrapped(Wrapped)) as CST
 
 data Declaration
@@ -35,6 +35,7 @@ data Expr
   | ExprValue Value
   | ExprArray (Array Expr)
   | ExprApp Expr Expr
+  | ExprConstructor String (Array Expr)
 
 instance Show Expr where
   show ExprError = "<Error>"
@@ -42,12 +43,14 @@ instance Show Expr where
   show (ExprApp f x) = "(" <> (show f) <> " " <> (show x) <> ")"
   show (ExprIdentifier identifier) = identifier
   show (ExprArray array) = "[" <> intercalate ", " (array <#> show) <> "]"
+  show (ExprConstructor name array) = ([ name ] <> (array <#> show <#> \x -> "(" <> x <> ")")) # Array.intercalate " "
 
 instance Eq Expr where
   eq (ExprIdentifier x) (ExprIdentifier y) = x == y
   eq (ExprValue x) (ExprValue y) = x == y
   eq (ExprApp f x) (ExprApp g y) = x == y && f == g
   eq (ExprArray x) (ExprArray y) = x == y
+  eq (ExprConstructor name array) (ExprConstructor name_ array_) = name == name_ && array == array_
   eq _ _ = false
 
 data Value
@@ -132,7 +135,18 @@ parse_declaration declaration = case parseDecl declaration of
         let
           all = [ head ] <> (tail <#> snd)
         in
-          all <#> (\(CST.DataCtor { name: CST.Name { name: CST.Proper c } }) -> c /\ ValueConstructor c [])
+          all <#>
+            ( \(CST.DataCtor { name: CST.Name { name: CST.Proper c }, fields }) -> case fields of
+                [] -> c /\ ValueConstructor c []
+                f -> let
+                    parameters = f # Array.mapWithIndex \i _ -> ("$" <> show i)
+                    constructor = ExprConstructor c (parameters <#> ExprIdentifier)
+                  in
+                    c /\ case parameters # Array.foldr (\p b -> ExprValue (ValueLambda p b)) constructor of
+                        ExprValue x -> x
+                        _ -> ValueError
+
+            )
 
     CST.DeclValue
       { name: CST.Name { name: CST.Ident name }

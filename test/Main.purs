@@ -23,6 +23,16 @@ main = launchAff_ $ runSpec [ specReporter ] do
                 [ "Noop" /\ ValueConstructor "Noop" []
                 ]
             )
+    it "parses data declaration with one constructor with two parameter" do
+      parse_declaration "data Command = Add Int Int"
+        # shouldEqual
+            ( DeclarationData "Command"
+                [ "Add" /\
+                    ( ValueLambda "$0" $ ExprValue $ ValueLambda "$1" $
+                        ExprConstructor "Add" [ ExprIdentifier "$0", ExprIdentifier "$1" ]
+                    )
+                ]
+            )
     it "parses data declaration with two constructor" do
       parse_declaration "data Command = Noop | Quit"
         # shouldEqual

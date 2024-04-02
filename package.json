@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "start": "spago bundle-module -x --main Interpreter"
+  },
   "devDependencies": {
     "esbuild": "^0.20.2",
     "purescript": "^0.15.15",

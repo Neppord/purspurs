@@ -6,6 +6,8 @@ import Data.Map.Internal (Map)
 import Data.Maybe (Maybe(..), maybe)
 import Parser (Declaration(..), Expr(..), Value(..), parse_declaration, parse_expression)
 import Data.Map.Internal (empty, insert, lookup) as Map
+import Data.Array (foldr) as Array
+import Data.Tuple (Tuple(Tuple))
 
 type Env = Map String Value
 
@@ -30,7 +32,8 @@ interpret_expr expr = evaluate_expr Map.empty (parse_expression expr)
 
 evaluate :: String -> Env -> Env
 evaluate s env = case parse_declaration s of
-  DeclarationData _ _ -> env
+  DeclarationData _ constructors -> constructors
+    # Array.foldr (\(Tuple key value) -> Map.insert key value) env
   DeclarationValue name expr ->
     let
       value = evaluate_expr env expr

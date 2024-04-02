@@ -38,7 +38,7 @@ data Expr
   | ExprConstructor String (Array Expr)
 
 instance Show Expr where
-  show ExprError = "<Error>"
+  show ExprError = "<Expr Error>"
   show (ExprValue value) = show value
   show (ExprApp f x) = "(" <> (show f) <> " " <> (show x) <> ")"
   show (ExprIdentifier identifier) = identifier
@@ -67,7 +67,7 @@ data Value
 
 instance Show Value where
   show ValueVoid = "Void"
-  show ValueError = "<Error>"
+  show ValueError = "<Value Error>"
   show (ValueBoolean b) = show b
   show (ValueChar b) = show b
   show (ValueString s) = show s

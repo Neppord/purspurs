@@ -5,16 +5,26 @@ import Prelude
 import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (launchAff_)
-import Interpreter (evaluate_expr)
+import Interpreter (default_env, evaluate, evaluate_expr)
 import Parser (Declaration(..), Expr(..), Value(..), parse_declaration, parse_expression)
 import Test.Spec (describe, it)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.Reporter.Spec (specReporter)
 import Test.Spec.Runner (runSpec)
-import Data.Map.Internal (empty, singleton) as Map
+import Data.Map.Internal (empty, fromFoldable, lookup, singleton) as Map
+import Data.Maybe (fromMaybe, maybe)
 
 main :: Effect Unit
 main = launchAff_ $ runSpec [ specReporter ] do
+  describe "evaluate program" do
+    it "handles session with data" do
+      default_env
+        # evaluate "data Foo = Bar Int"
+        # evaluate "Bar 42"
+        # shouldEqual (Map.fromFoldable [
+            "Bar" /\ ValueLambda "$0" (ExprConstructor "Bar" [ExprIdentifier "$0"]),
+            "_" /\ ValueConstructor "Bar" [ ValueInt 42 ]
+        ])
   describe "declaration parser" do
     it "parses data declaration with one constructor" do
       parse_declaration "data Command = Noop"
@@ -95,8 +105,8 @@ main = launchAff_ $ runSpec [ specReporter ] do
     it "applyes Constructor" do
       let
         ast = parse_expression "Foo 42"
-        env = Map.singleton "Foo" (ValueLambda "$0" (ExprConstructor "Foo" [ExprIdentifier "$0"]))
-      evaluate_expr env ast # shouldEqual (ValueConstructor "Foo" [ValueInt 42])
+        env = Map.singleton "Foo" (ValueLambda "$0" (ExprConstructor "Foo" [ ExprIdentifier "$0" ]))
+      evaluate_expr env ast # shouldEqual (ValueConstructor "Foo" [ ValueInt 42 ])
 
     describe "handle literals" do
       it "handles Boolean" do

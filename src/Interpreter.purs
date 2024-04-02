@@ -22,6 +22,7 @@ evaluate_expr env (ExprIdentifier key) = case Map.lookup key env of
   Just v -> v
   Nothing -> ValueError
 evaluate_expr env (ExprArray values) = ValueArray (values <#> evaluate_expr env)
+evaluate_expr env (ExprConstructor name values) = ValueConstructor name (values <#> evaluate_expr env)
 evaluate_expr _ _ = ValueError
 
 interpret_expr :: String -> Value

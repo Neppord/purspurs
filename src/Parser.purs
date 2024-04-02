@@ -120,6 +120,7 @@ expression_from_CST e = case e of
           _ -> ExprError
       )
       (expression_from_CST function)
+  CST.ExprConstructor (CST.QualifiedName {name: CST.Proper name}) -> ExprIdentifier name
   CST.ExprParens (CST.Wrapped { value: cst }) -> expression_from_CST cst
   _ -> ExprError
 

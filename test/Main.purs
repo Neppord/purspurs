@@ -92,6 +92,11 @@ main = launchAff_ $ runSpec [ specReporter ] do
         ast = parse_expression "f 42"
         env = Map.singleton "f" f
       evaluate_expr env ast # shouldEqual (ValueInt 42)
+    it "applyes Constructor" do
+      let
+        ast = parse_expression "Foo 42"
+        env = Map.singleton "Foo" (ValueLambda "$0" (ExprConstructor "Foo" [ExprIdentifier "$0"]))
+      evaluate_expr env ast # shouldEqual (ValueConstructor "Foo" [ValueInt 42])
 
     describe "handle literals" do
       it "handles Boolean" do

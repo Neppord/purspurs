@@ -126,11 +126,14 @@ parse_declaration declaration = case parseDecl declaration of
   _ -> DeclarationError
   where
   fromCST = case _ of
-    CST.DeclData { name: CST.Name { name: CST.Proper name } } Nothing -> DeclarationData name []
-    CST.DeclData
-      { name: CST.Name { name: CST.Proper name } }
-      (Just (Tuple _ (CST.Separated { head: CST.DataCtor { name: CST.Name { name: CST.Proper constructor } } }))) ->
-      DeclarationData name [ constructor /\ ValueConstructor constructor [] ]
+    CST.DeclData { name: CST.Name { name: CST.Proper name } } a -> DeclarationData name case a of
+      Nothing -> []
+      Just (Tuple _ (CST.Separated { head, tail })) ->
+        let
+          all = [ head ] <> (tail <#> snd)
+        in
+          all <#> (\(CST.DataCtor { name: CST.Name { name: CST.Proper c } }) -> c /\ ValueConstructor c [])
+
     CST.DeclValue
       { name: CST.Name { name: CST.Ident name }
       , binders

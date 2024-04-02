@@ -17,9 +17,20 @@ main :: Effect Unit
 main = launchAff_ $ runSpec [ specReporter ] do
   describe "declaration parser" do
     it "parses data declaration with one constructor" do
-      let
-        declaration = DeclarationData "Command" [ "Noop" /\ ValueConstructor "Noop" [] ]
-      parse_declaration "data Command = Noop" # shouldEqual declaration
+      parse_declaration "data Command = Noop"
+        # shouldEqual
+            ( DeclarationData "Command"
+                [ "Noop" /\ ValueConstructor "Noop" []
+                ]
+            )
+    it "parses data declaration with two constructor" do
+      parse_declaration "data Command = Noop | Quit"
+        # shouldEqual
+            ( DeclarationData "Command"
+                [ "Noop" /\ ValueConstructor "Noop" []
+                , "Quit" /\ ValueConstructor "Quit" []
+                ]
+            )
     it "parses value declaration with no parameter" do
       let
         expression = ExprValue (ValueInt 42)

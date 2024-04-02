@@ -10,6 +10,7 @@ import PureScript.CST.Types (AppSpine(AppTerm), Binder(BinderVar), Declaration(D
 import Data.Array (intercalate)
 import Data.Array.NonEmpty.Internal (NonEmptyArray(NonEmptyArray))
 import PureScript.CST.Types (Ident(Ident))
+import Data.Array (fold, foldr) as Array
 
 data Declaration
   = DeclarationError
@@ -109,8 +110,15 @@ parse_declaration declaration = case parseDecl declaration of
   where
   fromCST = case _ of
     CST.DeclValue
-      { name: CST.Name { name: Ident name }
+      { name: CST.Name { name: CST.Ident name }
+      , binders
       , guarded: CST.Unconditional _ (CST.Where {expr})
-      } ->
-      DeclarationValue name (expression_from_CST expr)
+      } -> let
+        base_expression = expression_from_CST expr
+        expression = binders # Array.foldr case _ of
+                CST.BinderVar (CST.Name {name: CST.Ident param}) ->
+                    \body -> ExprValue (ValueLambda param body)
+                _ -> \_ -> ExprError
+            base_expression
+      in DeclarationValue name expression
     _ -> DeclarationError

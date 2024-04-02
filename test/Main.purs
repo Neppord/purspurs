@@ -15,38 +15,51 @@ import Data.Map.Internal (empty, singleton) as Map
 main :: Effect Unit
 main = launchAff_ $ runSpec [ specReporter ] do
   describe "declaration parser" do
-    it "parses value declarations" do
-        let
-            expression = ExprValue (ValueInt 42)
-            declaration = DeclarationValue "x" expression
-        parse_declaration "x = 42" # shouldEqual declaration
+    it "parses value declaration with no parameter" do
+      let
+        expression = ExprValue (ValueInt 42)
+        declaration = DeclarationValue "x" expression
+      parse_declaration "x = 42" # shouldEqual declaration
+    it "parses value declaration with one parameter" do
+      let
+        expression = ExprValue (ValueLambda "x" (ExprValue (ValueInt 42)))
+        declaration = DeclarationValue "f" expression
+      parse_declaration "f x = 42" # shouldEqual declaration
+    it "parses value declaration with two parameter" do
+      let
+        expression = ExprValue
+          ( ValueLambda "x"
+              (ExprValue (ValueLambda "y" (ExprValue (ValueInt 42))))
+          )
+        declaration = DeclarationValue "f" expression
+      parse_declaration "f x y = 42" # shouldEqual declaration
   describe "expression parser" do
     it "parses identifiers" do
-        parse_expression "x" # shouldEqual (ExprIdentifier "x")
+      parse_expression "x" # shouldEqual (ExprIdentifier "x")
     it "parses lambda" do
-        parse_expression "\\x -> x" # shouldEqual (ExprValue (ValueLambda "x" (ExprIdentifier "x")))
+      parse_expression "\\x -> x" # shouldEqual (ExprValue (ValueLambda "x" (ExprIdentifier "x")))
     it "parses app" do
-        parse_expression "f x" # shouldEqual (ExprApp (ExprIdentifier "f") (ExprIdentifier "x"))
+      parse_expression "f x" # shouldEqual (ExprApp (ExprIdentifier "f") (ExprIdentifier "x"))
 
   describe "expression interptreter" do
     let simple_eval expr = evaluate_expr Map.empty (parse_expression expr)
     it "handle identifiers" do
-        let
-            x = ValueInt 42
-            ast = parse_expression "x"
-            env = Map.singleton "x" x
-        evaluate_expr env ast # shouldEqual x
+      let
+        x = ValueInt 42
+        ast = parse_expression "x"
+        env = Map.singleton "x" x
+      evaluate_expr env ast # shouldEqual x
     it "handle parenthesis" do
-        let
-            ast = parse_expression "(42)"
-            env = Map.empty
-        evaluate_expr env ast # shouldEqual (ValueInt 42)
+      let
+        ast = parse_expression "(42)"
+        env = Map.empty
+      evaluate_expr env ast # shouldEqual (ValueInt 42)
     it "applyes functions" do
-        let
-            f = ValueLambda "x" (ExprIdentifier "x")
-            ast = parse_expression "f 42"
-            env = Map.singleton "f" f
-        evaluate_expr env ast # shouldEqual (ValueInt 42)
+      let
+        f = ValueLambda "x" (ExprIdentifier "x")
+        ast = parse_expression "f 42"
+        env = Map.singleton "f" f
+      evaluate_expr env ast # shouldEqual (ValueInt 42)
 
     describe "handle literals" do
       it "handles Boolean" do

@@ -6,8 +6,9 @@ import Data.Map.Internal (Map)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Tuple (Tuple(Tuple), snd)
 import Parser (Declaration(..), Env, Expr(..), Value(..), parse_declaration, parse_expression)
-import Data.Array (foldr) as Array
+import Data.Array (foldr, fromFoldable) as Array
 import Data.Map.Internal (empty, insert, lookup, union) as Map
+import Data.Map (keys) as Map
 
 evaluate_expr :: Env -> Expr -> Value
 evaluate_expr _ (ExprValue value) = value
@@ -47,6 +48,9 @@ evaluate s env = case parse_declaration s of
 
 print :: Env -> String
 print env = Map.lookup "_" env # maybe "<Error>" show
+
+names :: Env -> Array String
+names env = Map.keys env # Array.fromFoldable
 
 default_env :: forall k v. Map k v
 default_env = Map.empty

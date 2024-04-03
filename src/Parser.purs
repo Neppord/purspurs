@@ -140,7 +140,7 @@ parse_declaration declaration = case parseDecl declaration of
             ( \(CST.DataCtor { name: CST.Name { name: CST.Proper c }, fields }) -> case fields of
                 [] -> c /\ ValueConstructor c []
                 f -> let
-                    parameters = f # Array.mapWithIndex \i _ -> ("$" <> show i)
+                    parameters = f # Array.mapWithIndex \i _ -> "$" <> show i
                     constructor = ExprConstructor c (parameters <#> ExprIdentifier)
                   in
                     c /\ case parameters # Array.foldr (\p b -> ExprValue (ValueLambda p b)) constructor of

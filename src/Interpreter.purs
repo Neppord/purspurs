@@ -5,7 +5,7 @@ import Prelude
 import Data.Map.Internal (Map)
 import Data.Maybe (Maybe(..), maybe)
 import Parser (Declaration(..), Expr(..), Value(..), parse_declaration, parse_expression)
-import Data.Map.Internal (empty, insert, lookup) as Map
+import Data.Map.Internal (empty, insert, lookup, union) as Map
 import Data.Array (foldr) as Array
 import Data.Tuple (Tuple(Tuple), snd)
 
@@ -25,6 +25,11 @@ evaluate_expr env (ExprIdentifier key) = case Map.lookup key env of
   Nothing -> ValueError
 evaluate_expr env (ExprArray values) = ValueArray (values <#> evaluate_expr env)
 evaluate_expr env (ExprConstructor name values) = ValueConstructor name (values <#> evaluate_expr env)
+evaluate_expr env (ExprLet m expr) =
+  let
+    new_env = Map.union (m <#> evaluate_expr env) env
+  in
+    evaluate_expr new_env expr
 evaluate_expr _ _ = ValueError
 
 interpret_expr :: String -> Value

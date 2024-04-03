@@ -11,19 +11,32 @@ import Test.Spec (describe, it)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.Reporter.Spec (specReporter)
 import Test.Spec.Runner (runSpec)
-import Data.Map.Internal (empty, fromFoldable, singleton) as Map
+import Data.Map.Internal (empty, fromFoldable, lookup, singleton) as Map
+import Data.Array (foldl)
+import Data.Array (foldl, foldr) as Array
+import Data.Maybe (fromMaybe, maybe)
+
+run_program :: Array String -> String
+run_program program = Array.foldl (\ env decl -> evaluate decl env) default_env program
+  # (Map.lookup "_")
+  # fromMaybe ValueError
+  # show
 
 main :: Effect Unit
 main = launchAff_ $ runSpec [ specReporter ] do
   describe "evaluate program" do
+    it "handles let in" do
+      run_program [ "f y = y", "let x = 1 in f x" ] # shouldEqual "1"
     it "handles session with data" do
       default_env
         # evaluate "data Foo = Bar Int"
         # evaluate "Bar 42"
-        # shouldEqual (Map.fromFoldable [
-            "Bar" /\ ValueLambda "$0" (ExprConstructor "Bar" [ExprIdentifier "$0"]),
-            "_" /\ ValueConstructor "Bar" [ ValueInt 42 ]
-        ])
+        # shouldEqual
+            ( Map.fromFoldable
+                [ "Bar" /\ ValueLambda "$0" (ExprConstructor "Bar" [ ExprIdentifier "$0" ])
+                , "_" /\ ValueConstructor "Bar" [ ValueInt 42 ]
+                ]
+            )
   describe "declaration parser" do
     it "parses data declaration with one constructor" do
       parse_declaration "data Command = Noop"
@@ -82,9 +95,10 @@ main = launchAff_ $ runSpec [ specReporter ] do
     it "parses chained app" do
       parse_expression "f x y" # shouldEqual (ExprApp (ExprApp f x) y)
     it "parses let expression" do
-      parse_expression """let
-        x = 1
-      in x """ # shouldEqual (ExprLet (Map.singleton "x" $ ExprValue $ ValueInt 1) x)
+      parse_expression """let x = 1 in x """
+        # shouldEqual (ExprLet (Map.singleton "x" $ ExprValue $ ValueInt 1) x)
+      parse_expression """let x = 1 in f x """
+            # shouldEqual (ExprLet (Map.singleton "x" $ ExprValue $ ValueInt 1) (ExprApp f x))
 
   describe "expression interptreter" do
     let simple_eval expr = evaluate_expr Map.empty (parse_expression expr)

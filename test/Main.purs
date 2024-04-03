@@ -11,8 +11,7 @@ import Test.Spec (describe, it)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.Reporter.Spec (specReporter)
 import Test.Spec.Runner (runSpec)
-import Data.Map.Internal (empty, fromFoldable, lookup, singleton) as Map
-import Data.Maybe (fromMaybe, maybe)
+import Data.Map.Internal (empty, fromFoldable, singleton) as Map
 
 main :: Effect Unit
 main = launchAff_ $ runSpec [ specReporter ] do

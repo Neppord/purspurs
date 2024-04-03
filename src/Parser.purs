@@ -10,7 +10,7 @@ import Data.Tuple (Tuple(Tuple), snd)
 import Data.Tuple.Nested ((/\))
 import PureScript.CST (RecoveredParserResult(ParseSucceeded), parseDecl, parseExpr)
 import Data.Array (foldl, foldr, intercalate, mapWithIndex) as Array
-import PureScript.CST.Types (AppSpine(AppTerm), Binder(BinderVar), DataCtor(DataCtor), Declaration(DeclData, DeclValue), Expr(..), Guarded(Unconditional), Ident(Ident), IntValue(..), Name(Name), Proper(Proper), QualifiedName(QualifiedName), Separated(Separated), Where(Where), Wrapped(Wrapped)) as CST
+import PureScript.CST.Types (AppSpine(..), Binder(..), DataCtor(..), Declaration(..), Expr(..), Guarded(..), Ident(..), IntValue(..), Name(..), Proper(..), QualifiedName(..), Separated(..), Where(..), Wrapped(..)) as CST
 
 data Declaration
   = DeclarationError
@@ -120,7 +120,7 @@ expression_from_CST e = case e of
           _ -> ExprError
       )
       (expression_from_CST function)
-  CST.ExprConstructor (CST.QualifiedName {name: CST.Proper name}) -> ExprIdentifier name
+  CST.ExprConstructor (CST.QualifiedName { name: CST.Proper name }) -> ExprIdentifier name
   CST.ExprParens (CST.Wrapped { value: cst }) -> expression_from_CST cst
   _ -> ExprError
 
@@ -139,13 +139,14 @@ parse_declaration declaration = case parseDecl declaration of
           all <#>
             ( \(CST.DataCtor { name: CST.Name { name: CST.Proper c }, fields }) -> case fields of
                 [] -> c /\ ValueConstructor c []
-                f -> let
+                f ->
+                  let
                     parameters = f # Array.mapWithIndex \i _ -> "$" <> show i
                     constructor = ExprConstructor c (parameters <#> ExprIdentifier)
                   in
                     c /\ case parameters # Array.foldr (\p b -> ExprValue (ValueLambda p b)) constructor of
-                        ExprValue x -> x
-                        _ -> ValueError
+                      ExprValue x -> x
+                      _ -> ValueError
 
             )
 

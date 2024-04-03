@@ -4,12 +4,10 @@ import Prelude
 
 import Data.Map.Internal (Map)
 import Data.Maybe (Maybe(..), maybe)
-import Parser (Declaration(..), Expr(..), Value(..), parse_declaration, parse_expression)
-import Data.Map.Internal (empty, insert, lookup, union) as Map
-import Data.Array (foldr) as Array
 import Data.Tuple (Tuple(Tuple), snd)
-
-type Env = Map String Value
+import Parser (Declaration(..), Env, Expr(..), Value(..), parse_declaration, parse_expression)
+import Data.Array (foldr) as Array
+import Data.Map.Internal (empty, insert, lookup, union) as Map
 
 evaluate_expr :: Env -> Expr -> Value
 evaluate_expr _ (ExprValue value) = value
@@ -18,7 +16,7 @@ evaluate_expr env (ExprApp f a) =
     argument = evaluate_expr env a
   in
     case evaluate_expr env f of
-      ValueLambda key expr -> evaluate_expr (env # Map.insert key argument) expr
+      ValueLambda key closure expr -> evaluate_expr (closure # Map.insert key argument) expr
       _ -> ValueError
 evaluate_expr env (ExprIdentifier key) = case Map.lookup key env of
   Just v -> v
@@ -30,16 +28,14 @@ evaluate_expr env (ExprLet m expr) =
     new_env = Map.union (m <#> evaluate_expr env) env
   in
     evaluate_expr new_env expr
+evaluate_expr env (ExprLambda p e) = ValueLambda p env e
 evaluate_expr _ _ = ValueError
-
-interpret_expr :: String -> Value
-interpret_expr expr = evaluate_expr Map.empty (parse_expression expr)
 
 evaluate :: String -> Env -> Env
 evaluate s env = case parse_declaration s of
   DeclarationData _ constructors -> constructors
-    # Array.foldr (\(Tuple key value) -> Map.insert key value) env
-    # Map.insert "_" (ValueArray (constructors <#> snd))
+    # Array.foldr (\(Tuple key expr) -> Map.insert key (evaluate_expr env expr)) env
+    # Map.insert "_" (ValueArray (constructors <#> snd <#> evaluate_expr env))
   DeclarationValue name expr ->
     let
       value = evaluate_expr env expr

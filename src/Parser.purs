@@ -3,23 +3,24 @@ module Parser where
 import Prelude
 
 import Data.Array.NonEmpty.Internal (NonEmptyArray(NonEmptyArray))
+import Data.Foldable (intercalate)
+import Data.FunctorWithIndex (mapWithIndex)
 import Data.Int (fromString)
+import Data.Map.Internal (Map)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Tuple (Tuple(Tuple), snd)
 import Data.Tuple.Nested ((/\))
 import PureScript.CST (RecoveredParserResult(ParseSucceeded), parseDecl, parseExpr)
 import Data.Array (foldl, foldr, intercalate, mapWithIndex) as Array
 import PureScript.CST.Types (AppSpine(..), Binder(..), DataCtor(..), Declaration(..), Expr(..), Guarded(..), Ident(..), IntValue(..), LetBinding(LetBindingName), Name(..), Proper(..), QualifiedName(..), Separated(..), Where(..), Wrapped(..)) as CST
-import Data.Map.Internal (Map)
-import Data.FunctorWithIndex (mapWithIndex)
-import Data.Map.Internal (empty, fromFoldable, values) as Map
-import Data.Foldable (intercalate)
-import PureScript.CST.Types (Where(Where))
+import Data.Map.Internal (fromFoldable, values) as Map
+
+type Env = Map String Value
 
 data Declaration
   = DeclarationError
   | DeclarationValue String Expr
-  | DeclarationData String (Array (Tuple String Value))
+  | DeclarationData String (Array (Tuple String Expr))
 
 instance Show Declaration where
   show DeclarationError = "<Error>"
@@ -41,6 +42,7 @@ data Expr
   | ExprApp Expr Expr
   | ExprLet (Map String Expr) Expr
   | ExprConstructor String (Array Expr)
+  | ExprLambda String Expr
 
 instance Show Expr where
   show ExprError = "<Expr Error>"
@@ -54,6 +56,7 @@ instance Show Expr where
   show (ExprIdentifier identifier) = identifier
   show (ExprArray array) = "[" <> intercalate ", " (array <#> show) <> "]"
   show (ExprConstructor name array) = ([ name ] <> (array <#> show <#> \x -> "(" <> x <> ")")) # Array.intercalate " "
+  show (ExprLambda parameter expr) = "(\\" <> parameter <> " -> " <> show expr <> ")"
 
 instance Eq Expr where
   eq (ExprIdentifier x) (ExprIdentifier y) = x == y
@@ -62,6 +65,9 @@ instance Eq Expr where
   eq (ExprLet f x) (ExprLet g y) = x == y && f == g
   eq (ExprArray x) (ExprArray y) = x == y
   eq (ExprConstructor name array) (ExprConstructor name_ array_) = name == name_ && array == array_
+  eq (ExprLambda parameter expression) (ExprLambda parameter_ expression_) =
+    parameter == parameter_
+      && expression == expression_
   eq _ _ = false
 
 data Value
@@ -73,7 +79,7 @@ data Value
   | ValueNumber Number
   | ValueString String
   | ValueArray (Array Value)
-  | ValueLambda String Expr
+  | ValueLambda String Env Expr
   | ValueConstructor String (Array Value)
 
 instance Show Value where
@@ -85,7 +91,7 @@ instance Show Value where
   show (ValueNumber s) = show s
   show (ValueArray a) = show a
   show (ValueInt i) = show i
-  show (ValueLambda param expr) = "(\\" <> param <> " -> " <> show expr <> ")"
+  show (ValueLambda param _ expr) = "(\\" <> param <> " -> " <> show expr <> ")"
   show (ValueConstructor name values) =
     if values == [] then name
     else
@@ -99,7 +105,10 @@ instance Eq Value where
   eq (ValueInt x) (ValueInt y) = x == y
   eq (ValueString x) (ValueString y) = x == y
   eq (ValueArray x) (ValueArray y) = x == y
-  eq (ValueLambda param expr) (ValueLambda param_ expr_) = param == param_ && expr == expr_
+  eq (ValueLambda param env expr) (ValueLambda param_ env_ expr_) =
+    param == param_
+      && env == env_
+      && expr == expr_
   eq (ValueConstructor name values) (ValueConstructor name_ values_) = name == name_ && values == values_
   eq _ _ = false
 
@@ -123,7 +132,7 @@ expression_from_CST e = case e of
     ExprArray ([ expression_from_CST head ] <> (tail <#> snd <#> expression_from_CST))
   CST.ExprIdent (CST.QualifiedName { name: CST.Ident name }) -> ExprIdentifier name
   CST.ExprLambda { binders: NonEmptyArray [ CST.BinderVar (CST.Name { name: CST.Ident name }) ], body } ->
-    ExprValue (ValueLambda name (expression_from_CST body))
+    ExprLambda name (expression_from_CST body)
   CST.ExprApp function (NonEmptyArray arguments) ->
     arguments # Array.foldl
       ( \f -> case _ of
@@ -139,7 +148,7 @@ expression_from_CST e = case e of
           <#> case _ of
             CST.LetBindingName
               { name: CST.Name { name: CST.Ident name }
-              , guarded: CST.Unconditional _ (CST.Where {expr})
+              , guarded: CST.Unconditional _ (CST.Where { expr })
               } -> name /\ expression_from_CST expr
             _ -> "???" /\ ExprError
           # Map.fromFoldable
@@ -161,15 +170,13 @@ parse_declaration declaration = case parseDecl declaration of
         in
           all <#>
             ( \(CST.DataCtor { name: CST.Name { name: CST.Proper c }, fields }) -> case fields of
-                [] -> c /\ ValueConstructor c []
+                [] -> c /\ ExprConstructor c []
                 f ->
                   let
                     parameters = f # Array.mapWithIndex \i _ -> "$" <> show i
                     constructor = ExprConstructor c (parameters <#> ExprIdentifier)
                   in
-                    c /\ case parameters # Array.foldr (\p b -> ExprValue (ValueLambda p b)) constructor of
-                      ExprValue x -> x
-                      _ -> ValueError
+                    c /\ (Array.foldr ExprLambda constructor parameters :: Expr)
 
             )
 
@@ -183,7 +190,7 @@ parse_declaration declaration = case parseDecl declaration of
         expression = binders # Array.foldr
           case _ of
             CST.BinderVar (CST.Name { name: CST.Ident param }) ->
-              \body -> ExprValue (ValueLambda param body)
+              \body -> ExprLambda param body
             _ -> \_ -> ExprError
           base_expression
       in

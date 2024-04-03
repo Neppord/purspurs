@@ -2,7 +2,6 @@ module Parser where
 
 import Prelude
 
-import Data.Array (intercalate)
 import Data.Array.NonEmpty.Internal (NonEmptyArray(NonEmptyArray))
 import Data.Int (fromString)
 import Data.Maybe (Maybe(..), maybe)
@@ -10,7 +9,12 @@ import Data.Tuple (Tuple(Tuple), snd)
 import Data.Tuple.Nested ((/\))
 import PureScript.CST (RecoveredParserResult(ParseSucceeded), parseDecl, parseExpr)
 import Data.Array (foldl, foldr, intercalate, mapWithIndex) as Array
-import PureScript.CST.Types (AppSpine(..), Binder(..), DataCtor(..), Declaration(..), Expr(..), Guarded(..), Ident(..), IntValue(..), Name(..), Proper(..), QualifiedName(..), Separated(..), Where(..), Wrapped(..)) as CST
+import PureScript.CST.Types (AppSpine(..), Binder(..), DataCtor(..), Declaration(..), Expr(..), Guarded(..), Ident(..), IntValue(..), LetBinding(LetBindingName), Name(..), Proper(..), QualifiedName(..), Separated(..), Where(..), Wrapped(..)) as CST
+import Data.Map.Internal (Map)
+import Data.FunctorWithIndex (mapWithIndex)
+import Data.Map.Internal (empty, fromFoldable, values) as Map
+import Data.Foldable (intercalate)
+import PureScript.CST.Types (Where(Where))
 
 data Declaration
   = DeclarationError
@@ -35,12 +39,18 @@ data Expr
   | ExprValue Value
   | ExprArray (Array Expr)
   | ExprApp Expr Expr
+  | ExprLet (Map String Expr) Expr
   | ExprConstructor String (Array Expr)
 
 instance Show Expr where
   show ExprError = "<Expr Error>"
   show (ExprValue value) = show value
   show (ExprApp f x) = "(" <> (show f) <> " " <> (show x) <> ")"
+  show (ExprLet m expr) = "(let\n"
+    <> (m # mapWithIndex (\k v -> "  " <> k <> " = " <> show v) # Map.values # intercalate "\n")
+    <> "\nin "
+    <> (show expr)
+    <> ")"
   show (ExprIdentifier identifier) = identifier
   show (ExprArray array) = "[" <> intercalate ", " (array <#> show) <> "]"
   show (ExprConstructor name array) = ([ name ] <> (array <#> show <#> \x -> "(" <> x <> ")")) # Array.intercalate " "
@@ -49,6 +59,7 @@ instance Eq Expr where
   eq (ExprIdentifier x) (ExprIdentifier y) = x == y
   eq (ExprValue x) (ExprValue y) = x == y
   eq (ExprApp f x) (ExprApp g y) = x == y && f == g
+  eq (ExprLet f x) (ExprLet g y) = x == y && f == g
   eq (ExprArray x) (ExprArray y) = x == y
   eq (ExprConstructor name array) (ExprConstructor name_ array_) = name == name_ && array == array_
   eq _ _ = false
@@ -122,6 +133,18 @@ expression_from_CST e = case e of
       (expression_from_CST function)
   CST.ExprConstructor (CST.QualifiedName { name: CST.Proper name }) -> ExprIdentifier name
   CST.ExprParens (CST.Wrapped { value: cst }) -> expression_from_CST cst
+  CST.ExprLet { bindings: NonEmptyArray bindings, body } ->
+    ExprLet
+      ( bindings
+          <#> case _ of
+            CST.LetBindingName
+              { name: CST.Name { name: CST.Ident name }
+              , guarded: CST.Unconditional _ (CST.Where {expr})
+              } -> name /\ expression_from_CST expr
+            _ -> "???" /\ ExprError
+          # Map.fromFoldable
+      )
+      (expression_from_CST body)
   _ -> ExprError
 
 parse_declaration :: String -> Declaration

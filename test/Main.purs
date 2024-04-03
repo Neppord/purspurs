@@ -81,6 +81,10 @@ main = launchAff_ $ runSpec [ specReporter ] do
       parse_expression "f x" # shouldEqual (ExprApp f x)
     it "parses chained app" do
       parse_expression "f x y" # shouldEqual (ExprApp (ExprApp f x) y)
+    it "parses let expression" do
+      parse_expression """let
+        x = 1
+      in x """ # shouldEqual (ExprLet (Map.singleton "x" $ ExprValue $ ValueInt 1) x)
 
   describe "expression interptreter" do
     let simple_eval expr = evaluate_expr Map.empty (parse_expression expr)

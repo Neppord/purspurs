@@ -3,7 +3,7 @@ module Test.Interpreter.Expression where
 import Prelude
 
 import Interpreter (evaluate_expr)
-import Parser (Expr(ExprConstructor, ExprIdentifier), Value(ValueArray, ValueBoolean, ValueChar, ValueConstructor, ValueInt, ValueLambda, ValueNumber, ValueString), parse_expression)
+import Parser (Expr(ExprConstructor, ExprIdentifier), Value(..), parse_expression)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)
 import Data.Map (empty, singleton) as Map
@@ -14,6 +14,7 @@ simple_eval expr = evaluate_expr Map.empty (parse_expression expr)
 spec :: Spec Unit
 spec = describe "expression interptreter" do
   literals
+  foreign_
   it "handle identifiers" do
     let
       x = ValueInt 42
@@ -38,6 +39,12 @@ spec = describe "expression interptreter" do
         $ ValueLambda "$0" Map.empty
         $ ExprConstructor "Foo" [ ExprIdentifier "$0" ]
     evaluate_expr env ast # shouldEqual (ValueConstructor "Foo" [ ValueInt 42 ])
+
+foreign_ :: Spec Unit
+foreign_ = describe "handle foregin" do
+    it "calls foregin functions" do
+        evaluate_expr (Map.singleton "inc" (ValueForeignFnIntInt \x -> x + 1)) (parse_expression "inc 42")
+            # shouldEqual (ValueInt 43)
 
 literals :: Spec Unit
 literals = describe "handle literals" do

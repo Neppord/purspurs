@@ -18,6 +18,9 @@ evaluate_expr env (ExprApp f a) =
   in
     case evaluate_expr env f of
       ValueLambda key closure expr -> evaluate_expr (closure # Map.insert key argument) expr
+      ValueForeignFnIntInt int_to_int -> case argument of
+        ValueInt i -> int_to_int i # ValueInt
+        _ -> ValueError
       _ -> ValueError
 evaluate_expr env (ExprIdentifier key) = case Map.lookup key env of
   Just v -> v

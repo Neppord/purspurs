@@ -81,6 +81,8 @@ data Value
   | ValueArray (Array Value)
   | ValueLambda String Env Expr
   | ValueConstructor String (Array Value)
+  | ValueForeignFnIntInt (Int->Int)
+
 
 instance Show Value where
   show ValueVoid = "Void"
@@ -91,6 +93,7 @@ instance Show Value where
   show (ValueNumber s) = show s
   show (ValueArray a) = show a
   show (ValueInt i) = show i
+  show (ValueForeignFnIntInt _) = "<foreign>"
   show (ValueLambda param _ expr) = "(\\" <> param <> " -> " <> show expr <> ")"
   show (ValueConstructor name values) =
     if values == [] then name

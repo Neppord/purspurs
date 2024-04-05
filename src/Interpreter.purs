@@ -7,8 +7,8 @@ import Data.Maybe (Maybe(..), maybe)
 import Data.Tuple (Tuple(Tuple), snd)
 import Parser (Declaration(..), Env, Expr(..), Value(..), parse_declaration, parse_expression)
 import Data.Array (foldr, fromFoldable) as Array
-import Data.Map.Internal (empty, insert, lookup, union) as Map
 import Data.Map (keys) as Map
+import Data.Map.Internal (empty, insert, lookup, union) as Map
 
 evaluate_expr :: Env -> Expr -> Value
 evaluate_expr _ (ExprValue value) = value
@@ -18,9 +18,7 @@ evaluate_expr env (ExprApp f a) =
   in
     case evaluate_expr env f of
       ValueLambda key closure expr -> evaluate_expr (closure # Map.insert key argument) expr
-      ValueForeignFnIntInt int_to_int -> case argument of
-        ValueInt i -> int_to_int i # ValueInt
-        _ -> ValueError
+      ValueForeignFn fn -> fn argument
       _ -> ValueError
 evaluate_expr env (ExprIdentifier key) = case Map.lookup key env of
   Just v -> v

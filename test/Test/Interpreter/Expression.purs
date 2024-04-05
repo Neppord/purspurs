@@ -42,9 +42,13 @@ spec = describe "expression interptreter" do
 
 foreign_ :: Spec Unit
 foreign_ = describe "handle foregin" do
-    it "calls foregin functions" do
-        evaluate_expr (Map.singleton "inc" (ValueForeignFnIntInt \x -> x + 1)) (parse_expression "inc 42")
-            # shouldEqual (ValueInt 43)
+  it "calls foregin functions" do
+    let
+      inc = ValueForeignFn case _ of
+        ValueInt i -> ValueInt (1 + i)
+        _ -> ValueError
+    evaluate_expr (Map.singleton "inc" inc) (parse_expression "inc 42")
+      # shouldEqual (ValueInt 43)
 
 literals :: Spec Unit
 literals = describe "handle literals" do

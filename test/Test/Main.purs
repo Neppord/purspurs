@@ -2,17 +2,18 @@ module Test.Main where
 
 import Prelude
 
-import Data.Tuple.Nested ((/\))
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Interpreter (default_env, evaluate, evaluate_expr, print)
-import Parser (Declaration(..), Expr(..), Value(..), parse_declaration, parse_expression)
+import Parser (Expr(..), Value(..), parse_expression)
 import Test.Spec (describe, it)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.Reporter.Spec (specReporter)
 import Test.Spec.Runner (runSpec)
 import Data.Array (foldl) as Array
 import Data.Map.Internal (empty, singleton) as Map
+import Test.Parser.Declaration (spec) as Parser.Declaration
+import Test.Parser.Expression (spec) as Parser.Expression
 
 run_program :: Array String -> String
 run_program program = Array.foldl (\env decl -> evaluate decl env) default_env program
@@ -20,6 +21,9 @@ run_program program = Array.foldl (\env decl -> evaluate decl env) default_env p
 
 main :: Effect Unit
 main = launchAff_ $ runSpec [ specReporter ] do
+  Parser.Declaration.spec
+  Parser.Expression.spec
+
   describe "evaluate program" do
     it "handles literal" do
       run_program [ "1" ] # shouldEqual "1"
@@ -32,63 +36,6 @@ main = launchAff_ $ runSpec [ specReporter ] do
       run_program [ "y = 1", "f y x = y", "f 2 3" ] # shouldEqual "2"
     it "handles session with data" do
       run_program [ "data Foo = Bar Int", "Bar 42" ] # shouldEqual "(Bar 42)"
-
-  describe "declaration parser" do
-    it "parses data declaration with one constructor" do
-      parse_declaration "data Cmd = Noop"
-        # shouldEqual (DeclarationData "Cmd" [ "Noop" /\ ExprConstructor "Noop" [] ])
-    it "parses data declaration with one constructor with two parameter" do
-      parse_declaration "data Cmd = Add Int Int"
-        # shouldEqual
-            ( DeclarationData "Cmd"
-                [ "Add" /\
-                    ( ExprLambda "$0"
-                        $ ExprLambda "$1"
-                        $ ExprConstructor "Add" [ ExprIdentifier "$0", ExprIdentifier "$1" ]
-                    )
-                ]
-            )
-    it "parses data declaration with two constructor" do
-      parse_declaration "data Command = Noop | Quit"
-        # shouldEqual
-            ( DeclarationData "Command"
-                [ "Noop" /\ ExprConstructor "Noop" []
-                , "Quit" /\ ExprConstructor "Quit" []
-                ]
-            )
-    it "parses value declaration with no parameter" do
-      let
-        expression = ExprValue (ValueInt 42)
-        declaration = DeclarationValue "x" expression
-      parse_declaration "x = 42" # shouldEqual declaration
-    it "parses value declaration with one parameter" do
-      let
-        expression = ExprLambda "x" $ ExprValue $ ValueInt 42
-        declaration = DeclarationValue "f" expression
-      parse_declaration "f x = 42" # shouldEqual declaration
-    it "parses value declaration with two parameter" do
-      let
-        expression = ExprLambda "x" $ ExprLambda "y" $ ExprValue $ ValueInt 42
-        declaration = DeclarationValue "f" expression
-      parse_declaration "f x y = 42" # shouldEqual declaration
-  describe "expression parser" do
-    let
-      f = ExprIdentifier "f"
-      x = ExprIdentifier "x"
-      y = ExprIdentifier "y"
-    it "parses identifiers" do
-      parse_expression "x" # shouldEqual x
-    it "parses lambda" do
-      parse_expression "\\x -> x" # shouldEqual (ExprLambda "x" x)
-    it "parses app" do
-      parse_expression "f x" # shouldEqual (ExprApp f x)
-    it "parses chained app" do
-      parse_expression "f x y" # shouldEqual (ExprApp (ExprApp f x) y)
-    it "parses let expression" do
-      parse_expression """let x = 1 in x """
-        # shouldEqual (ExprLet (Map.singleton "x" $ ExprValue $ ValueInt 1) x)
-      parse_expression """let x = 1 in f x """
-        # shouldEqual (ExprLet (Map.singleton "x" $ ExprValue $ ValueInt 1) (ExprApp f x))
 
   describe "expression interptreter" do
     let simple_eval expr = evaluate_expr Map.empty (parse_expression expr)

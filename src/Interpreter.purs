@@ -5,10 +5,13 @@ import Prelude
 import Data.Map.Internal (Map)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Tuple (Tuple(Tuple), snd)
+import Data.Tuple.Nested ((/\))
 import Parser (Declaration(..), Env, Expr(..), Value(..), parse_declaration, parse_expression)
 import Data.Array (foldr, fromFoldable) as Array
 import Data.Map (keys) as Map
-import Data.Map.Internal (empty, insert, lookup, union) as Map
+import Data.Map.Internal (fromFoldable, insert, lookup, union) as Map
+
+
 
 evaluate_expr :: Env -> Expr -> Value
 evaluate_expr _ (ExprValue value) = value
@@ -53,5 +56,16 @@ print env = Map.lookup "_" env # maybe "<Error>" show
 names :: Env -> Array String
 names env = Map.keys env # Array.fromFoldable
 
-default_env :: forall k v. Map k v
-default_env = Map.empty
+default_env :: Map String Value
+default_env = Map.fromFoldable
+  [ "add" /\ ValueForeignFn case _ of
+      ValueInt x -> ValueForeignFn case _ of
+        ValueInt y -> ValueInt (x + y)
+        _ -> ValueError
+      _ -> ValueError
+  , "mul" /\ ValueForeignFn case _ of
+      ValueInt x -> ValueForeignFn case _ of
+        ValueInt y -> ValueInt (x * y)
+        _ -> ValueError
+      _ -> ValueError
+  ]

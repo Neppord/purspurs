@@ -39,6 +39,17 @@ spec = describe "expression interptreter" do
         $ ValueLambda "$0" Map.empty
         $ ExprConstructor "Foo" [ ExprIdentifier "$0" ]
     evaluate_expr env ast # shouldEqual (ValueConstructor "Foo" [ ValueInt 42 ])
+  it "handle if-else is true" do
+    let
+      ast = parse_expression "if true then 1 else 2"
+      env = Map.empty
+    evaluate_expr env ast # shouldEqual (ValueInt 1)
+  it "handle if-else is false" do
+    let
+      ast = parse_expression "if false then 1 else 2"
+      env = Map.empty
+    evaluate_expr env ast # shouldEqual (ValueInt 2)
+
 
 foreign_ :: Spec Unit
 foreign_ = describe "handle foregin" do

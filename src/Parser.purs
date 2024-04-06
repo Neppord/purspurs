@@ -41,13 +41,15 @@ data Expr
   | ExprArray (Array Expr)
   | ExprApp Expr Expr
   | ExprLet (Map String Expr) Expr
+  | ExprIfElse Expr Expr Expr
   | ExprConstructor String (Array Expr)
   | ExprLambda String Expr
 
 instance Show Expr where
   show ExprError = "<Expr Error>"
   show (ExprValue value) = show value
-  show (ExprApp f x) = "(" <> (show f) <> " " <> (show x) <> ")"
+  show (ExprApp f x) = "(" <> show f <> " " <> show x <> ")"
+  show (ExprIfElse i t e) = "(if" <> show i <> " then " <> show t <> "else" <> show e <> ")"
   show (ExprLet m expr) = "(let\n"
     <> (m # mapWithIndex (\k v -> "  " <> k <> " = " <> show v) # Map.values # intercalate "\n")
     <> "\nin "
@@ -62,6 +64,7 @@ instance Eq Expr where
   eq (ExprIdentifier x) (ExprIdentifier y) = x == y
   eq (ExprValue x) (ExprValue y) = x == y
   eq (ExprApp f x) (ExprApp g y) = x == y && f == g
+  eq (ExprIfElse i t e) (ExprIfElse i_ t_ e_) = i == i_ && t == t_ && e == e_
   eq (ExprLet f x) (ExprLet g y) = x == y && f == g
   eq (ExprArray x) (ExprArray y) = x == y
   eq (ExprConstructor name array) (ExprConstructor name_ array_) = name == name_ && array == array_
@@ -81,8 +84,7 @@ data Value
   | ValueArray (Array Value)
   | ValueLambda String Env Expr
   | ValueConstructor String (Array Value)
-  | ValueForeignFn (Value->Value)
-
+  | ValueForeignFn (Value -> Value)
 
 instance Show Value where
   show ValueVoid = "Void"
@@ -145,6 +147,10 @@ expression_from_CST e = case e of
       (expression_from_CST function)
   CST.ExprConstructor (CST.QualifiedName { name: CST.Proper name }) -> ExprIdentifier name
   CST.ExprParens (CST.Wrapped { value: cst }) -> expression_from_CST cst
+  CST.ExprIf { cond, true: t, false: f } -> ExprIfElse
+    (expression_from_CST cond)
+    (expression_from_CST t)
+    (expression_from_CST f)
   CST.ExprLet { bindings: NonEmptyArray bindings, body } ->
     ExprLet
       ( bindings

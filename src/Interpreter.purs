@@ -34,6 +34,10 @@ evaluate_expr env (ExprLet m expr) =
   in
     evaluate_expr new_env expr
 evaluate_expr env (ExprLambda p e) = ValueLambda p env e
+evaluate_expr env (ExprIfElse i t e) = case evaluate_expr env i of
+    ValueBoolean true -> evaluate_expr env t
+    ValueBoolean false -> evaluate_expr env e
+    _ -> ValueError
 evaluate_expr _ _ = ValueError
 
 evaluate :: String -> Env -> Env

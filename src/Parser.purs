@@ -49,7 +49,7 @@ instance Show Expr where
   show ExprError = "<Expr Error>"
   show (ExprValue value) = show value
   show (ExprApp f x) = "(" <> show f <> " " <> show x <> ")"
-  show (ExprIfElse i t e) = "(if" <> show i <> " then " <> show t <> "else" <> show e <> ")"
+  show (ExprIfElse i t e) = "(if " <> show i <> " then " <> show t <> " else " <> show e <> ")"
   show (ExprLet m expr) = "(let\n"
     <> (m # mapWithIndex (\k v -> "  " <> k <> " = " <> show v) # Map.values # intercalate "\n")
     <> "\nin "

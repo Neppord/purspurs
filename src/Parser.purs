@@ -42,6 +42,7 @@ data Expr
   | ExprApp Expr Expr
   | ExprLet (Map String Expr) Expr
   | ExprIfElse Expr Expr Expr
+  | ExprCase Expr (Array (Tuple Expr Expr))
   | ExprConstructor String (Array Expr)
   | ExprLambda String Expr
 
@@ -55,6 +56,9 @@ instance Show Expr where
     <> "\nin "
     <> (show expr)
     <> ")"
+  show (ExprCase m branches) = "(case " <> show m <> " of\n"
+    <> (branches <#> (\(Tuple k v) -> "  " <> show k <> " -> " <> show v) # intercalate "\n")
+    <> "\n)"
   show (ExprIdentifier identifier) = identifier
   show (ExprArray array) = "[" <> intercalate ", " (array <#> show) <> "]"
   show (ExprConstructor name array) = ([ name ] <> (array <#> show <#> \x -> "(" <> x <> ")")) # Array.intercalate " "
@@ -65,6 +69,7 @@ instance Eq Expr where
   eq (ExprValue x) (ExprValue y) = x == y
   eq (ExprApp f x) (ExprApp g y) = x == y && f == g
   eq (ExprIfElse i t e) (ExprIfElse i_ t_ e_) = i == i_ && t == t_ && e == e_
+  eq (ExprCase m b) (ExprCase m_ b_) = m == m_ && b == b_
   eq (ExprLet f x) (ExprLet g y) = x == y && f == g
   eq (ExprArray x) (ExprArray y) = x == y
   eq (ExprConstructor name array) (ExprConstructor name_ array_) = name == name_ && array == array_
@@ -151,6 +156,15 @@ expression_from_CST e = case e of
     (expression_from_CST cond)
     (expression_from_CST t)
     (expression_from_CST f)
+  CST.ExprCase { head: CST.Separated { head }, branches: NonEmptyArray branches } ->
+    ExprCase (expression_from_CST head)
+      ( branches <#>
+          ( \(Tuple (CST.Separated { head: binder }) guarded) -> case guarded of
+              CST.Unconditional _ (CST.Where { expr }) ->
+                expression_from_binder binder /\ expression_from_CST expr
+              _ -> ExprError /\ ExprError
+          )
+      )
   CST.ExprLet { bindings: NonEmptyArray bindings, body } ->
     ExprLet
       ( bindings
@@ -164,6 +178,10 @@ expression_from_CST e = case e of
       )
       (expression_from_CST body)
   _ -> ExprError
+
+expression_from_binder :: CST.Binder Void -> Expr
+expression_from_binder (CST.BinderBoolean _ value) = ExprValue $ ValueBoolean value
+expression_from_binder _ = ExprError
 
 parse_declaration :: String -> Declaration
 parse_declaration declaration = case parseDecl declaration of

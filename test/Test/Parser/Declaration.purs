@@ -3,7 +3,9 @@ module Test.Parser.Declaration where
 import Prelude
 
 import Data.Tuple.Nested ((/\))
-import Parser (Declaration(DeclarationData, DeclarationValue), Expr(ExprConstructor, ExprIdentifier, ExprLambda, ExprValue), Value(ValueInt), parse_declaration)
+import PursPurs.Declaration (Declaration(DeclarationData, DeclarationValue))
+import PursPurs.Expression (Expr(ExprConstructor, ExprIdentifier, ExprLambda, ExprValue), Value(ValueInt))
+import Parser (parse_declaration)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)
 

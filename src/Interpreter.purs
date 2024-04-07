@@ -6,7 +6,9 @@ import Data.Map.Internal (Map)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Tuple (Tuple(Tuple), snd)
 import Data.Tuple.Nested ((/\))
-import Parser (Declaration(..), Env, Expr(..), Value(..), parse_declaration, parse_expression)
+import PursPurs.Expression (Env, Expr(..), Value(..))
+import PursPurs.Declaration (Declaration(..))
+import Parser (parse_declaration, parse_expression)
 import Data.Array (foldr, fromFoldable) as Array
 import Data.Map (keys) as Map
 import Data.Map.Internal (fromFoldable, insert, lookup, union) as Map

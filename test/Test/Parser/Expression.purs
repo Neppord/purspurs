@@ -2,12 +2,12 @@ module Test.Parser.Expression where
 
 import Prelude
 
-import Parser (Expr(ExprApp, ExprIdentifier, ExprLambda, ExprLet, ExprValue), Expr(ExprIfElse), Expr(ExprCase), Value(ValueInt), Value(ValueBoolean), parse_expression)
+import Data.Tuple.Nested ((/\))
+import Parser (parse_expression)
+import PursPurs.Expression (Expr(ExprApp, ExprCase, ExprIdentifier, ExprLambda, ExprLet, ExprValue), Value(ValueBoolean, ValueInt))
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)
 import Data.Map (singleton) as Map
-import Data.Map.Internal (fromFoldable) as Map
-import Data.Tuple.Nested ((/\))
 
 spec :: Spec Unit
 spec = describe "expression parser" do

@@ -3,7 +3,8 @@ module Test.Interpreter.Expression where
 import Prelude
 
 import Interpreter (evaluate_expr)
-import Parser (Expr(ExprConstructor, ExprIdentifier), Value(..), parse_expression)
+import PursPurs.Expression (Expr(..), Value(..))
+import Parser (parse_expression)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)
 import Data.Map (empty, singleton) as Map

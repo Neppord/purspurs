@@ -12,14 +12,17 @@ import Data.Map.Internal (values) as Map
 
 data Binder
     = BinderValue Value
+    | BinderVariable String
     | BinderError
 
 instance Show Binder where
     show (BinderValue v) = show v
+    show (BinderVariable v) = v
     show BinderError = show "<Binder Error>"
 
 instance eqBinder :: Eq Binder where
     eq (BinderValue x) (BinderValue x_) = x == x_
+    eq (BinderVariable x) (BinderVariable x_) = x == x_
     eq _ _ = false
 
 type Env = Map String Value

@@ -9,7 +9,7 @@ import Data.Tuple (Tuple(Tuple), snd)
 import Data.Tuple.Nested ((/\))
 import PureScript.CST (RecoveredParserResult(ParseSucceeded), parseDecl, parseExpr)
 import PursPurs.Declaration (Declaration(DeclarationData, DeclarationError, DeclarationValue))
-import PursPurs.Expression (Binder(BinderError, BinderValue), Expr(..), Value(..))
+import PursPurs.Expression (Binder(BinderError, BinderValue, BinderVariable), Expr(..), Value(..))
 import Data.Array (foldl, foldr, mapWithIndex) as Array
 import PureScript.CST.Types (AppSpine(..), Binder(..), DataCtor(..), Declaration(..), Expr(..), Guarded(..), Ident(..), IntValue(..), LetBinding(LetBindingName), Name(..), Proper(..), QualifiedName(..), Separated(..), Where(..), Wrapped(..)) as CST
 import Data.Map.Internal (fromFoldable) as Map
@@ -73,6 +73,7 @@ expression_from_CST e = case e of
 
 binder_from_CST :: CST.Binder Void -> Binder
 binder_from_CST (CST.BinderBoolean _ value) = BinderValue $ ValueBoolean value
+binder_from_CST (CST.BinderVar (CST.Name { name: CST.Ident name })) = BinderVariable name
 binder_from_CST _ = BinderError
 
 parse_declaration :: String -> Declaration

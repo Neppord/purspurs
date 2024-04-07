@@ -4,7 +4,7 @@ import Prelude
 
 import Data.Tuple.Nested ((/\))
 import Parser (parse_expression)
-import PursPurs.Expression (Binder(BinderValue), Expr(ExprApp, ExprCase, ExprIdentifier, ExprLambda, ExprLet, ExprValue), Value(ValueBoolean, ValueInt))
+import PursPurs.Expression (Binder(..), Expr(ExprApp, ExprCase, ExprIdentifier, ExprLambda, ExprLet, ExprValue), Value(ValueBoolean, ValueInt))
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)
 import Data.Map (singleton) as Map
@@ -23,7 +23,7 @@ spec = describe "expression parser" do
     parse_expression "f x" # shouldEqual (ExprApp f x)
   it "parses chained app" do
     parse_expression "f x y" # shouldEqual (ExprApp (ExprApp f x) y)
-  it "parses case" do
+  it "parses case with literal branch" do
     let
       true_ = ExprValue (ValueBoolean true)
       false_ = ExprValue (ValueBoolean false)
@@ -39,6 +39,15 @@ spec = describe "expression parser" do
               , false_binder /\ true_
               ]
           )
+  it "parses case with var binder" do
+    let
+      true_ = ExprValue (ValueBoolean true)
+      x_binder = BinderVariable "x"
+    parse_expression
+      """case true of
+      x -> x
+      """
+      # shouldEqual ( ExprCase true_ [ x_binder /\ x ] )
   it "parses let expression" do
     parse_expression """let x = 1 in x """
       # shouldEqual (ExprLet (Map.singleton "x" $ ExprValue $ ValueInt 1) x)

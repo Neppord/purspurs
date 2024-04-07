@@ -45,4 +45,9 @@ main = launchAff_ $ runSpec [ specReporter ] do
       run_program ["""case 1 of
         _ -> true
       """] # shouldEqual "true"
+    it "handles session case of constructor" do
+      run_program ["data Foo = A | B", """case B of
+        A -> false
+        B -> true
+      """] # shouldEqual "true"
 

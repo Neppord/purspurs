@@ -10,7 +10,7 @@ import Data.Tuple.Nested ((/\))
 import PureScript.CST (RecoveredParserResult(ParseSucceeded), parseDecl, parseExpr)
 import PureScript.CST.Types (IntValue(SmallInt))
 import PursPurs.Declaration (Declaration(DeclarationData, DeclarationError, DeclarationValue))
-import PursPurs.Expression (Binder(BinderError, BinderValue, BinderVariable, BinderWildcard), Expr(..), Value(..))
+import PursPurs.Expression (Binder(BinderError, BinderValue, BinderVariable, BinderWildcard), Binder(BinderConstructor), Expr(..), Value(..))
 import Data.Array (foldl, foldr, mapWithIndex) as Array
 import PureScript.CST.Types (AppSpine(..), Binder(..), DataCtor(..), Declaration(..), Expr(..), Guarded(..), Ident(..), IntValue(..), LetBinding(LetBindingName), Name(..), Proper(..), QualifiedName(..), Separated(..), Where(..), Wrapped(..)) as CST
 import Data.Map.Internal (fromFoldable) as Map
@@ -77,6 +77,8 @@ binder_from_CST (CST.BinderBoolean _ value) = BinderValue $ ValueBoolean value
 binder_from_CST (CST.BinderInt _ _ (SmallInt value)) = BinderValue $ ValueInt value
 binder_from_CST (CST.BinderVar (CST.Name { name: CST.Ident name })) = BinderVariable name
 binder_from_CST (CST.BinderWildcard _) = BinderWildcard
+binder_from_CST (CST.BinderConstructor (CST.QualifiedName {name: CST.Proper name}) binders) =
+    BinderConstructor name (binders <#> binder_from_CST)
 binder_from_CST _ = BinderError
 
 parse_declaration :: String -> Declaration

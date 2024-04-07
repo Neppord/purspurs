@@ -9,7 +9,7 @@ import Data.Tuple (Tuple(Tuple), snd)
 import Data.Tuple.Nested ((/\))
 import PureScript.CST (RecoveredParserResult(ParseSucceeded), parseDecl, parseExpr)
 import PursPurs.Declaration (Declaration(DeclarationData, DeclarationError, DeclarationValue))
-import PursPurs.Expression (Expr(..), Value(..))
+import PursPurs.Expression (Binder(BinderError, BinderValue), Expr(..), Value(..))
 import Data.Array (foldl, foldr, mapWithIndex) as Array
 import PureScript.CST.Types (AppSpine(..), Binder(..), DataCtor(..), Declaration(..), Expr(..), Guarded(..), Ident(..), IntValue(..), LetBinding(LetBindingName), Name(..), Proper(..), QualifiedName(..), Separated(..), Where(..), Wrapped(..)) as CST
 import Data.Map.Internal (fromFoldable) as Map
@@ -53,8 +53,8 @@ expression_from_CST e = case e of
       ( branches <#>
           ( \(Tuple (CST.Separated { head: binder }) guarded) -> case guarded of
               CST.Unconditional _ (CST.Where { expr }) ->
-                expression_from_binder binder /\ expression_from_CST expr
-              _ -> ExprError /\ ExprError
+                binder_from_CST binder /\ expression_from_CST expr
+              _ -> BinderError /\ ExprError
           )
       )
   CST.ExprLet { bindings: NonEmptyArray bindings, body } ->
@@ -71,9 +71,9 @@ expression_from_CST e = case e of
       (expression_from_CST body)
   _ -> ExprError
 
-expression_from_binder :: CST.Binder Void -> Expr
-expression_from_binder (CST.BinderBoolean _ value) = ExprValue $ ValueBoolean value
-expression_from_binder _ = ExprError
+binder_from_CST :: CST.Binder Void -> Binder
+binder_from_CST (CST.BinderBoolean _ value) = BinderValue $ ValueBoolean value
+binder_from_CST _ = BinderError
 
 parse_declaration :: String -> Declaration
 parse_declaration declaration = case parseDecl declaration of

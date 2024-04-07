@@ -4,7 +4,7 @@ import Prelude
 
 import Data.Tuple.Nested ((/\))
 import Parser (parse_expression)
-import PursPurs.Expression (Expr(ExprApp, ExprCase, ExprIdentifier, ExprLambda, ExprLet, ExprValue), Value(ValueBoolean, ValueInt))
+import PursPurs.Expression (Binder(BinderValue), Expr(ExprApp, ExprCase, ExprIdentifier, ExprLambda, ExprLet, ExprValue), Value(ValueBoolean, ValueInt))
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)
 import Data.Map (singleton) as Map
@@ -27,14 +27,16 @@ spec = describe "expression parser" do
     let
       true_ = ExprValue (ValueBoolean true)
       false_ = ExprValue (ValueBoolean false)
+      true_binder = BinderValue (ValueBoolean true)
+      false_binder = BinderValue (ValueBoolean false)
     parse_expression
       """case true of
       true -> false
       false -> true
       """
       # shouldEqual ( ExprCase true_
-              [ true_ /\ false_
-              , false_ /\ true_
+              [ true_binder /\ false_
+              , false_binder /\ true_
               ]
           )
   it "parses let expression" do

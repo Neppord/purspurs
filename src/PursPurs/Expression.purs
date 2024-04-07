@@ -10,6 +10,18 @@ import Data.List (intercalate) as List
 import Data.Map.Internal (values) as Map
 
 
+data Binder
+    = BinderValue Value
+    | BinderError
+
+instance Show Binder where
+    show (BinderValue v) = show v
+    show BinderError = show "<Binder Error>"
+
+instance eqBinder :: Eq Binder where
+    eq (BinderValue x) (BinderValue x_) = x == x_
+    eq _ _ = false
+
 type Env = Map String Value
 
 data Expr
@@ -20,7 +32,7 @@ data Expr
   | ExprApp Expr Expr
   | ExprLet (Map String Expr) Expr
   | ExprIfElse Expr Expr Expr
-  | ExprCase Expr (Array (Tuple Expr Expr))
+  | ExprCase Expr (Array (Tuple Binder Expr))
   | ExprConstructor String (Array Expr)
   | ExprLambda String Expr
 

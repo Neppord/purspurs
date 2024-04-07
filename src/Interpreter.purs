@@ -8,7 +8,7 @@ import Data.Tuple (Tuple(Tuple), snd)
 import Data.Tuple.Nested ((/\))
 import Parser (parse_declaration, parse_expression)
 import PursPurs.Declaration (Declaration(..))
-import PursPurs.Expression (Binder(BinderError, BinderValue, BinderVariable), Env, Expr(..), Value(..))
+import PursPurs.Expression (Binder(BinderError, BinderValue, BinderVariable, BinderWildcard), Env, Expr(..), Value(..))
 import Data.Array (find, foldr, fromFoldable) as Array
 import Data.Map (keys) as Map
 import Data.Map.Internal (fromFoldable, insert, lookup, union) as Map
@@ -45,10 +45,12 @@ evaluate_expr env (ExprCase expr branches) = let
     Tuple binder expr_ = branches
         # (Array.find \(Tuple binder _) -> case binder of
             BinderVariable _ -> true
+            BinderWildcard -> true
             BinderValue value_ -> value == value_
             BinderError -> true)
         # fromMaybe (Tuple BinderError ExprError)
     next_env = case binder of
+        BinderWildcard -> env
         BinderValue _ -> env
         BinderVariable name -> env # Map.insert name value
         BinderError -> env

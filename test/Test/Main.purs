@@ -41,4 +41,8 @@ main = launchAff_ $ runSpec [ specReporter ] do
         false -> true
         x -> x
       """, "f true" ] # shouldEqual "true"
+    it "handles session case of _" do
+      run_program ["""case 1 of
+        _ -> true
+      """] # shouldEqual "true"
 

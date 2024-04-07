@@ -13,16 +13,19 @@ import Data.Map.Internal (values) as Map
 data Binder
     = BinderValue Value
     | BinderVariable String
+    | BinderWildcard
     | BinderError
 
 instance Show Binder where
     show (BinderValue v) = show v
     show (BinderVariable v) = v
+    show (BinderWildcard) = "_"
     show BinderError = show "<Binder Error>"
 
-instance eqBinder :: Eq Binder where
+instance Eq Binder where
     eq (BinderValue x) (BinderValue x_) = x == x_
     eq (BinderVariable x) (BinderVariable x_) = x == x_
+    eq (BinderWildcard) (BinderWildcard) = true
     eq _ _ = false
 
 type Env = Map String Value

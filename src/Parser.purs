@@ -13,6 +13,7 @@ import PursPurs.Expression (Binder(BinderError, BinderValue, BinderVariable), Ex
 import Data.Array (foldl, foldr, mapWithIndex) as Array
 import PureScript.CST.Types (AppSpine(..), Binder(..), DataCtor(..), Declaration(..), Expr(..), Guarded(..), Ident(..), IntValue(..), LetBinding(LetBindingName), Name(..), Proper(..), QualifiedName(..), Separated(..), Where(..), Wrapped(..)) as CST
 import Data.Map.Internal (fromFoldable) as Map
+import PureScript.CST.Types (IntValue(SmallInt))
 
 parse_expression :: String -> Expr
 parse_expression expr = case parseExpr expr of
@@ -73,6 +74,7 @@ expression_from_CST e = case e of
 
 binder_from_CST :: CST.Binder Void -> Binder
 binder_from_CST (CST.BinderBoolean _ value) = BinderValue $ ValueBoolean value
+binder_from_CST (CST.BinderInt _ _ (SmallInt value)) = BinderValue $ ValueInt value
 binder_from_CST (CST.BinderVar (CST.Name { name: CST.Ident name })) = BinderVariable name
 binder_from_CST _ = BinderError
 

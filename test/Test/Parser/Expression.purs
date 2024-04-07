@@ -23,7 +23,7 @@ spec = describe "expression parser" do
     parse_expression "f x" # shouldEqual (ExprApp f x)
   it "parses chained app" do
     parse_expression "f x y" # shouldEqual (ExprApp (ExprApp f x) y)
-  it "parses case with literal branch" do
+  it "parses case with bolean literal" do
     let
       true_ = ExprValue (ValueBoolean true)
       false_ = ExprValue (ValueBoolean false)
@@ -37,6 +37,23 @@ spec = describe "expression parser" do
       # shouldEqual ( ExprCase true_
               [ true_binder /\ false_
               , false_binder /\ true_
+              ]
+          )
+  it "parses case with literal branch" do
+    let
+      one_ = ExprValue (ValueInt 1)
+      true_ = ExprValue (ValueBoolean true)
+      false_ = ExprValue (ValueBoolean false)
+      one_binder = BinderValue (ValueInt 1)
+      x_binder = BinderVariable "x"
+    parse_expression
+      """case 1 of
+      1 -> false
+      x -> true
+      """
+      # shouldEqual ( ExprCase one_
+              [ one_binder /\ false_
+              , x_binder /\ true_
               ]
           )
   it "parses case with var binder" do

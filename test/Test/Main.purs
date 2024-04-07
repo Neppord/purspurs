@@ -36,4 +36,9 @@ main = launchAff_ $ runSpec [ specReporter ] do
       run_program [ "y = 1", "f y x = y", "f 2 3" ] # shouldEqual "2"
     it "handles session with data" do
       run_program [ "data Foo = Bar Int", "Bar 42" ] # shouldEqual "(Bar 42)"
+    it "handles session case of" do
+      run_program [ """f x = case x of
+        false -> true
+        x -> x
+      """, "f true" ] # shouldEqual "true"
 

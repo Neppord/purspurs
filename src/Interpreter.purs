@@ -3,13 +3,13 @@ module Interpreter where
 import Prelude
 
 import Data.Map.Internal (Map)
-import Data.Maybe (Maybe(..), maybe)
+import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Tuple (Tuple(Tuple), snd)
 import Data.Tuple.Nested ((/\))
-import PursPurs.Expression (Env, Expr(..), Value(..))
-import PursPurs.Declaration (Declaration(..))
 import Parser (parse_declaration, parse_expression)
-import Data.Array (foldr, fromFoldable) as Array
+import PursPurs.Declaration (Declaration(..))
+import PursPurs.Expression (Binder(BinderError, BinderValue, BinderVariable), Env, Expr(..), Value(..))
+import Data.Array (find, foldr, fromFoldable) as Array
 import Data.Map (keys) as Map
 import Data.Map.Internal (fromFoldable, insert, lookup, union) as Map
 
@@ -40,6 +40,19 @@ evaluate_expr env (ExprIfElse i t e) = case evaluate_expr env i of
     ValueBoolean true -> evaluate_expr env t
     ValueBoolean false -> evaluate_expr env e
     _ -> ValueError
+evaluate_expr env (ExprCase expr branches) = let
+    value = evaluate_expr env expr
+    Tuple binder expr_ = branches
+        # (Array.find \(Tuple binder _) -> case binder of
+            BinderVariable _ -> true
+            BinderValue value_ -> value == value_
+            BinderError -> true)
+        # fromMaybe (Tuple BinderError ExprError)
+    next_env = case binder of
+        BinderValue _ -> env
+        BinderVariable name -> env # Map.insert name value
+        BinderError -> env
+    in evaluate_expr next_env expr_
 evaluate_expr _ _ = ValueError
 
 evaluate :: String -> Env -> Env

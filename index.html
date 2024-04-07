@@ -27,6 +27,8 @@
         }
 
         #output {
+            width: max-content;
+            height: max-content;
             white-space: pre-wrap;
             font-family: 'JetBrains Mono', monospace;
             margin-bottom: 0;
@@ -34,8 +36,9 @@
 
         #code-label {
             position: relative;
-            display: inline-block;
-            width: max-content;
+            display: block;
+            width: 100vw;
+            height: 3em;
             margin: 0;
             padding: 0;
         }
@@ -44,18 +47,21 @@
             color: #3a3a5f;
             background: transparent;
         }
+
         #preview, #preview:focus-visible, #preview:focus {
             color: green;
         }
+
         #code, #code:focus-visible, #code:focus,
         #preview, #preview:focus-visible, #preview:focus {
             top: 0;
             left: 0;
+            right: 0;
+            bottom: 0;
             padding-left: 4ex;
             padding-top: 0;
             padding-right: 0;
             padding-bottom: 0;
-            width: max-content;
             position: absolute;
         }
     </style>
@@ -63,13 +69,14 @@
 <body>
 <form id="form">
     <output id="output"></output>
-    <label id="code-label" for="code">>>> <input id="preview" type="text"/><input
+    <label id="code-label" for="code">>>> <textarea id="preview" type="text"></textarea><textarea
             id="code"
             type="text"
             autocomplete="off"
             autocapitalize="none"
-            autofocus
-    /></label>
+            placeholder="shift + enter: creates a new line
+ctrl + up/down: moves in history"
+            autofocus></textarea></label>
 </form>
 <script type="module">
     import * as Interpreter from "./index.js";
@@ -79,6 +86,7 @@
     const output = document.getElementById("output");
     const code = document.getElementById("code");
     const preview = document.getElementById("preview");
+    const code_label = document.getElementById("code-label");
     const keywords = ["let", "in"]
     const history = []
     let history_index = 0
@@ -87,7 +95,7 @@
         let words = text.split(" ");
         let word = words[words.length - 1]
         let keyword = keywords.filter(keyword => keyword.startsWith(word))[0]
-        let padding = text.substring(0, text.length - word.length).replace(/./g," ");
+        let padding = text.substring(0, text.length - word.length).replace(/./g, " ");
         if (keyword && word.length > 0) {
             text = padding + keyword + " "
         } else {
@@ -100,17 +108,22 @@
             }
         }
         preview.value = text
+        let lines = code.value.split("\n").length + 1
+        code_label.style.height = (lines * 1.5) + "em"
     })
     code.addEventListener('keydown', function (event) {
-        if (event.key === "Enter" && !event.ctrlKey) {
+        if (event.key === "Enter" && !event.shiftKey) {
             repl()
-        } else if (event.key === "ArrowUp" && history_index > 0) {
-            code.value = history[--history_index]
-        } else if (event.key === "ArrowDown" && (history_index + 1) < history.length) {
-            code.value = history[++history_index]
-        } else if (event.key === "ArrowDown") {
-            history_index = history.length
-            code.value = ""
+            event.preventDefault()
+        } else if (event.ctrlKey) {
+            if (event.key === "ArrowUp" && history_index > 0) {
+                code.value = history[--history_index]
+            } else if (event.key === "ArrowDown" && (history_index + 1) < history.length) {
+                code.value = history[++history_index]
+            } else if (event.key === "ArrowDown") {
+                history_index = history.length
+                code.value = ""
+            }
         } else if (event.key === "Tab" && code.value.length < preview.value.length) {
             code.value = code.value + preview.value.substring(code.value.length)
             preview.value = ""

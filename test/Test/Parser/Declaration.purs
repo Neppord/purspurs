@@ -3,9 +3,9 @@ module Test.Parser.Declaration where
 import Prelude
 
 import Data.Tuple.Nested ((/\))
-import PursPurs.Declaration (Declaration(DeclarationData, DeclarationValue))
-import PursPurs.Expression (Expr(ExprConstructor, ExprIdentifier, ExprLambda, ExprValue), Value(ValueInt))
 import Parser (parse_declaration)
+import PursPurs.Declaration (Declaration(DeclarationData, DeclarationFixity, DeclarationValue), Fixity(Infixl))
+import PursPurs.Expression (Expr(ExprConstructor, ExprIdentifier, ExprLambda, ExprValue), Value(ValueInt))
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)
 
@@ -48,3 +48,5 @@ spec = describe "declaration parser" do
       expression = ExprLambda "x" $ ExprLambda "y" $ ExprValue $ ValueInt 42
       declaration = DeclarationValue "f" expression
     parse_declaration "f x y = 42" # shouldEqual declaration
+  it "parses fixity" do
+    parse_declaration "infixl 6 add as +" # shouldEqual (DeclarationFixity Infixl 6 "add" "+")

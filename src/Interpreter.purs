@@ -86,6 +86,7 @@ evaluate s env = case parse_declaration s of
       env
         # Map.insert name value
         # Map.insert "_" value
+  DeclarationFixity _ _ _ _ -> env
   DeclarationError -> env # Map.insert "_" (evaluate_expr env (parse_expression s))
 
 print :: Env -> String

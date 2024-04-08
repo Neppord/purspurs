@@ -27,8 +27,8 @@ expression_from_CST e = case e of
   CST.ExprNumber _ s -> ExprValue $ ValueNumber s
   CST.ExprInt _ s -> ExprValue case s of
     CST.SmallInt i -> ValueInt i
-    CST.BigInt i -> fromString i # maybe ValueError ValueInt
-    CST.BigHex i -> fromString i # maybe ValueError ValueInt
+    CST.BigInt i -> fromString i # maybe (ValueError "Could not parse Int, to big?") ValueInt
+    CST.BigHex i -> fromString i # maybe (ValueError "Could not parse Int, to big?") ValueInt
   CST.ExprString _ s -> ExprValue $ ValueString s
   CST.ExprArray (CST.Wrapped { value: Nothing }) -> ExprValue $ ValueArray []
   CST.ExprArray (CST.Wrapped { value: Just (CST.Separated { head, tail }) }) ->

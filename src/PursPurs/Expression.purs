@@ -9,29 +9,28 @@ import Data.Array (intercalate) as Array
 import Data.List (intercalate) as List
 import Data.Map.Internal (values) as Map
 
-
 data Binder
-    = BinderValue Value
-    | BinderVariable String
-    | BinderWildcard
-    | BinderConstructor String (Array Binder)
-    | BinderError
+  = BinderValue Value
+  | BinderVariable String
+  | BinderWildcard
+  | BinderConstructor String (Array Binder)
+  | BinderError
 
 instance Show Binder where
-    show (BinderValue v) = show v
-    show (BinderVariable v) = v
-    show BinderWildcard = "_"
-    show (BinderConstructor name binders) =
-        "(" <> name <> (binders <#> show # Array.intercalate " ") <> ")"
-    show BinderError = show "<Binder Error>"
+  show (BinderValue v) = show v
+  show (BinderVariable v) = v
+  show BinderWildcard = "_"
+  show (BinderConstructor name binders) =
+    "(" <> name <> (binders <#> show # Array.intercalate " ") <> ")"
+  show BinderError = show "<Binder Error>"
 
 instance Eq Binder where
-    eq (BinderValue x) (BinderValue x_) = x == x_
-    eq (BinderVariable x) (BinderVariable x_) = x == x_
-    eq BinderWildcard BinderWildcard = true
-    eq (BinderConstructor name binders) (BinderConstructor name_ binders_) =
-        name == name_ && binders == binders_
-    eq _ _ = false
+  eq (BinderValue x) (BinderValue x_) = x == x_
+  eq (BinderVariable x) (BinderVariable x_) = x == x_
+  eq BinderWildcard BinderWildcard = true
+  eq (BinderConstructor name binders) (BinderConstructor name_ binders_) =
+    name == name_ && binders == binders_
+  eq _ _ = false
 
 type Env = Map String Value
 
@@ -81,7 +80,7 @@ instance Eq Expr where
 
 data Value
   = ValueVoid
-  | ValueError
+  | ValueError String
   | ValueBoolean Boolean
   | ValueInt Int
   | ValueChar Char
@@ -94,7 +93,7 @@ data Value
 
 instance Show Value where
   show ValueVoid = "Void"
-  show ValueError = "<Value Error>"
+  show (ValueError msg) = "<Value Error: " <> msg <> ">"
   show (ValueBoolean b) = show b
   show (ValueChar b) = show b
   show (ValueString s) = show s

@@ -58,7 +58,7 @@ foreign_ = describe "handle foregin" do
     let
       inc = ValueForeignFn case _ of
         ValueInt i -> ValueInt (1 + i)
-        _ -> ValueError
+        _ -> ValueError "Expected Int"
     evaluate_expr (Map.singleton "inc" inc) (parse_expression "inc 42")
       # shouldEqual (ValueInt 43)
 

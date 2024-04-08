@@ -37,17 +37,34 @@ main = launchAff_ $ runSpec [ specReporter ] do
     it "handles session with data" do
       run_program [ "data Foo = Bar Int", "Bar 42" ] # shouldEqual "(Bar 42)"
     it "handles session case of" do
-      run_program [ """f x = case x of
+      run_program
+        [ """f x = case x of
         false -> true
         x -> x
-      """, "f true" ] # shouldEqual "true"
+      """
+        , "f true"
+        ] # shouldEqual "true"
     it "handles session case of _" do
-      run_program ["""case 1 of
+      run_program
+        [ """case 1 of
         _ -> true
-      """] # shouldEqual "true"
-    it "handles session case of constructor" do
-      run_program ["data Foo = A | B", """case B of
+      """
+        ] # shouldEqual "true"
+    it "handles session case of constructor without subbinders" do
+      run_program
+        [ "data Foo = A | B"
+        , """case B of
         A -> false
         B -> true
-      """] # shouldEqual "true"
+      """
+        ] # shouldEqual "true"
+
+    it "handles session case of constructor with subbinders" do
+      run_program
+        [ "data Foo = A | B Boolean"
+        , """case B true of
+        A -> false
+        B b -> b
+      """
+        ] # shouldEqual "true"
 

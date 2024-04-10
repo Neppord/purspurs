@@ -5,12 +5,12 @@ import Prelude
 import Data.FunctorWithIndex (mapWithIndex)
 import Data.Map.Internal (Map)
 import Data.Tuple (Tuple(Tuple))
-import Data.Array (intercalate) as Array
+import Data.Array (intercalate, null) as Array
 import Data.List (intercalate) as List
 import Data.Map.Internal (values) as Map
 
 data Binder
-  = BinderValue Value
+  = BinderValue (Value Expr)
   | BinderVariable String
   | BinderWildcard
   | BinderConstructor String (Array Binder)
@@ -32,12 +32,12 @@ instance Eq Binder where
     name == name_ && binders == binders_
   eq _ _ = false
 
-type Env = Map String Value
+type Env = Map String (Value Expr)
 
 data Expr
   = ExprError
   | ExprIdentifier String
-  | ExprValue Value
+  | ExprValue (Value Expr)
   | ExprArray (Array Expr)
   | ExprApp Expr Expr
   | ExprLet (Map String Expr) Expr
@@ -78,7 +78,7 @@ instance Eq Expr where
       && expression == expression_
   eq _ _ = false
 
-data Value
+data Value expr
   = ValueVoid
   | ValueError String
   | ValueBoolean Boolean
@@ -86,12 +86,12 @@ data Value
   | ValueChar Char
   | ValueNumber Number
   | ValueString String
-  | ValueArray (Array Value)
-  | ValueLambda String Env Expr
-  | ValueConstructor String (Array Value)
-  | ValueForeignFn (Value -> Value)
+  | ValueArray (Array (Value expr))
+  | ValueLambda String Env expr
+  | ValueConstructor String (Array (Value expr))
+  | ValueForeignFn (Value expr -> Value expr)
 
-instance Show Value where
+instance Show expr => Show (Value expr) where
   show ValueVoid = "Void"
   show (ValueError msg) = "<Value Error: " <> msg <> ">"
   show (ValueBoolean b) = show b
@@ -103,11 +103,11 @@ instance Show Value where
   show (ValueForeignFn _) = "<foreign>"
   show (ValueLambda param _ expr) = "(\\" <> param <> " -> " <> show expr <> ")"
   show (ValueConstructor name values) =
-    if values == [] then name
+    if Array.null values then name
     else
       "(" <> name <> " " <> (values <#> show # Array.intercalate " ") <> ")"
 
-instance Eq Value where
+instance Eq expr => Eq (Value expr) where
   eq ValueVoid ValueVoid = true
   eq (ValueBoolean x) (ValueBoolean y) = x == y
   eq (ValueChar x) (ValueChar y) = x == y

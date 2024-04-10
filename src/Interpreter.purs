@@ -12,7 +12,7 @@ import Data.Array (any, catMaybes, findMap, foldr, fromFoldable) as Array
 import Data.Map (keys) as Map
 import Data.Map.Internal (empty, fromFoldable, insert, lookup, singleton, union) as Map
 
-evaluate_expr :: Env -> Expr -> Value
+evaluate_expr :: Env -> Expr -> Value Expr
 evaluate_expr _ (ExprValue value) = value
 evaluate_expr env (ExprApp f a) =
   let
@@ -53,7 +53,7 @@ evaluate_expr env (ExprCase expr branches) =
       Just (Tuple expr_ env_) -> evaluate_expr (Map.union env env_) expr_
 evaluate_expr _ _ = ValueError "?"
 
-match_binder :: Value -> Binder -> Maybe Env
+match_binder :: Value Expr -> Binder -> Maybe Env
 match_binder value (BinderVariable name) = Just (Map.singleton name value)
 match_binder _ (BinderWildcard) = Just Map.empty
 match_binder value (BinderValue value_) =

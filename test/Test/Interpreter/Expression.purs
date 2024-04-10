@@ -9,7 +9,7 @@ import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)
 import Data.Map (empty, singleton) as Map
 
-simple_eval :: String -> Value
+simple_eval :: String -> Value Expr
 simple_eval expr = evaluate_expr Map.empty (parse_expression expr)
 
 spec :: Spec Unit

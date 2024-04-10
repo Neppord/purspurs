@@ -2,7 +2,7 @@ module Interpreter where
 
 import Prelude
 
-import Data.Maybe (Maybe(..), isNothing, maybe)
+import Data.Maybe (Maybe(..), isNothing)
 import Data.Tuple (Tuple(Tuple), snd)
 import Data.Tuple.Nested ((/\))
 import Parser (parse_declaration, parse_expression)
@@ -11,7 +11,8 @@ import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, 
 import PursPurs.Value (Env, Value(..))
 import Data.Array (any, catMaybes, findMap, foldr, fromFoldable) as Array
 import Data.Map (keys) as Map
-import Data.Map.Internal (empty, fromFoldable, insert, lookup, singleton, union) as Map
+import Data.Map.Internal (empty, fromFoldable, insert, singleton, union) as Map
+import PursPurs.Value (lookup) as Value
 
 evaluate_expr :: Env Expr -> Expr -> Value Expr
 evaluate_expr _ (ExprValue value) = value
@@ -23,9 +24,7 @@ evaluate_expr env (ExprApp f a) =
       ValueLambda key closure expr -> evaluate_expr (closure # Map.insert key argument) expr
       ValueForeignFn fn -> fn argument
       _ -> ValueError (show f <> " is not callable")
-evaluate_expr env (ExprIdentifier key) = case Map.lookup key env of
-  Just v -> v
-  Nothing -> ValueError ("Could not find " <> key <> " in scope")
+evaluate_expr env (ExprIdentifier key) = env # Value.lookup key
 evaluate_expr env (ExprArray values) = ValueArray (values <#> evaluate_expr env)
 evaluate_expr env (ExprConstructor name values) = ValueConstructor name (values <#> evaluate_expr env)
 evaluate_expr env (ExprLet m expr) =
@@ -91,7 +90,9 @@ evaluate s env = case parse_declaration s of
   DeclarationError -> env # Map.insert "_" (evaluate_expr env (parse_expression s))
 
 print :: Env Expr -> String
-print env = Map.lookup "_" env # maybe "<Error>" show
+print env = env
+  # Value.lookup "_"
+  # show
 
 names :: Env Expr -> Array String
 names env = Map.keys env # Array.fromFoldable

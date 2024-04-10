@@ -4,7 +4,8 @@ import Prelude
 
 import Data.Tuple.Nested ((/\))
 import Parser (parse_expression)
-import PursPurs.Expression (Binder(..), Expr(ExprApp, ExprCase, ExprIdentifier, ExprLambda, ExprLet, ExprValue), Value(ValueBoolean, ValueInt))
+import PursPurs.Expression (Binder(..), Expr(ExprApp, ExprCase, ExprIdentifier, ExprLambda, ExprLet, ExprValue))
+import PursPurs.Value (Value(..))
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)
 import Data.Map (singleton) as Map

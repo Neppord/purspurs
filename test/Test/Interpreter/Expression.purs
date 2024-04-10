@@ -3,8 +3,9 @@ module Test.Interpreter.Expression where
 import Prelude
 
 import Interpreter (evaluate_expr)
-import PursPurs.Expression (Expr(..), Value(..))
 import Parser (parse_expression)
+import PursPurs.Expression (Expr(..))
+import PursPurs.Value (Value(..))
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)
 import Data.Map (empty, singleton) as Map
@@ -50,7 +51,6 @@ spec = describe "expression interptreter" do
       ast = parse_expression "if false then 1 else 2"
       env = Map.empty
     evaluate_expr env ast # shouldEqual (ValueInt 2)
-
 
 foreign_ :: Spec Unit
 foreign_ = describe "handle foregin" do

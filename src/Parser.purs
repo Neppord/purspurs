@@ -10,7 +10,8 @@ import Data.Tuple.Nested ((/\))
 import PureScript.CST (RecoveredParserResult(ParseSucceeded), parseDecl, parseExpr)
 import PureScript.CST.Types (IntValue(SmallInt))
 import PursPurs.Declaration (Declaration(DeclarationData, DeclarationError, DeclarationFixity, DeclarationValue), Fixity(Infixl))
-import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, BinderVariable, BinderWildcard), Expr(..), Value(..))
+import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, BinderVariable, BinderWildcard), Expr(..))
+import PursPurs.Value (Value(..))
 import Data.Array (foldl, foldr, mapWithIndex) as Array
 import PureScript.CST.Types (AppSpine(..), Binder(..), DataCtor(..), Declaration(..), Expr(..), FixityOp(FixityValue), Guarded(..), Ident(..), IntValue(..), LetBinding(LetBindingName), Name(..), Operator(Operator), Proper(..), QualifiedName(..), Separated(..), Where(..), Wrapped(..)) as CST
 import Data.Map.Internal (fromFoldable) as Map

@@ -7,12 +7,13 @@ import Data.Tuple (Tuple(Tuple), snd)
 import Data.Tuple.Nested ((/\))
 import Parser (parse_declaration, parse_expression)
 import PursPurs.Declaration (Declaration(..))
-import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, BinderVariable, BinderWildcard), Env, Expr(..), Value(..))
+import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, BinderVariable, BinderWildcard), Expr(..))
+import PursPurs.Value (Env, Value(..))
 import Data.Array (any, catMaybes, findMap, foldr, fromFoldable) as Array
 import Data.Map (keys) as Map
 import Data.Map.Internal (empty, fromFoldable, insert, lookup, singleton, union) as Map
 
-evaluate_expr :: Env -> Expr -> Value Expr
+evaluate_expr :: Env Expr -> Expr -> Value Expr
 evaluate_expr _ (ExprValue value) = value
 evaluate_expr env (ExprApp f a) =
   let
@@ -53,7 +54,7 @@ evaluate_expr env (ExprCase expr branches) =
       Just (Tuple expr_ env_) -> evaluate_expr (Map.union env env_) expr_
 evaluate_expr _ _ = ValueError "?"
 
-match_binder :: Value Expr -> Binder -> Maybe Env
+match_binder :: Value Expr -> Binder -> Maybe (Env Expr)
 match_binder value (BinderVariable name) = Just (Map.singleton name value)
 match_binder _ (BinderWildcard) = Just Map.empty
 match_binder value (BinderValue value_) =
@@ -74,7 +75,7 @@ match_binder value (BinderConstructor name binders) = case value of
   _ -> Nothing
 match_binder _ (BinderError) = Just Map.empty
 
-evaluate :: String -> Env -> Env
+evaluate :: String -> Env Expr -> Env Expr
 evaluate s env = case parse_declaration s of
   DeclarationData _ constructors -> constructors
     # Array.foldr (\(Tuple key expr) -> Map.insert key (evaluate_expr env expr)) env
@@ -89,13 +90,13 @@ evaluate s env = case parse_declaration s of
   DeclarationFixity _ _ _ _ -> env
   DeclarationError -> env # Map.insert "_" (evaluate_expr env (parse_expression s))
 
-print :: Env -> String
+print :: Env Expr -> String
 print env = Map.lookup "_" env # maybe "<Error>" show
 
-names :: Env -> Array String
+names :: Env Expr -> Array String
 names env = Map.keys env # Array.fromFoldable
 
-default_env :: Env
+default_env :: Env Expr
 default_env = Map.fromFoldable
   [ "add" /\ ValueForeignFn case _ of
       ValueInt x -> ValueForeignFn case _ of

@@ -5,10 +5,10 @@ import Prelude
 import Data.FunctorWithIndex (mapWithIndex)
 import Data.Map.Internal (Map)
 import Data.Tuple (Tuple(Tuple))
-import Data.Array (intercalate, null) as Array
+import PursPurs.Value (Value)
+import Data.Array (intercalate) as Array
 import Data.List (intercalate) as List
 import Data.Map.Internal (values) as Map
-import PursPurs.Value (Value)
 
 data Binder
   = BinderValue (Value Expr)
@@ -32,7 +32,6 @@ instance Eq Binder where
   eq (BinderConstructor name binders) (BinderConstructor name_ binders_) =
     name == name_ && binders == binders_
   eq _ _ = false
-
 
 data Expr
   = ExprError

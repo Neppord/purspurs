@@ -3,7 +3,7 @@ module PursPurs.Value where
 import Prelude
 import Data.Map.Internal (Map)
 import Data.Array (intercalate, null) as Array
-import Data.Map.Internal (lookup) as Map
+import Data.Map.Internal (insert, lookup) as Map
 import Data.Maybe (fromMaybe) as Maybe
 
 type Env expr = Map String (Value expr)
@@ -14,6 +14,9 @@ cant_find key = ValueError $ "Could not find " <> key <> " in scope"
 lookup :: forall expr. String -> Env expr -> Value expr
 lookup key env = Map.lookup key env
   # Maybe.fromMaybe (cant_find key)
+
+insert :: forall expr. String -> Value expr -> Env expr -> Env expr
+insert = Map.insert
 
 data Value expr
   = ValueVoid

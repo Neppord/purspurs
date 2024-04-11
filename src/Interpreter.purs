@@ -11,8 +11,8 @@ import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, 
 import PursPurs.Value (Env, Value(..))
 import Data.Array (any, catMaybes, findMap, foldr, fromFoldable) as Array
 import Data.Map (keys) as Map
-import Data.Map.Internal (empty, fromFoldable, insert, singleton, union) as Map
-import PursPurs.Value (lookup) as Value
+import Data.Map.Internal (empty, fromFoldable, singleton, union) as Map
+import PursPurs.Value (insert, lookup) as Value
 
 evaluate_expr :: Env Expr -> Expr -> Value Expr
 evaluate_expr _ (ExprValue value) = value
@@ -21,7 +21,7 @@ evaluate_expr env (ExprApp f a) =
     argument = evaluate_expr env a
   in
     case evaluate_expr env f of
-      ValueLambda key closure expr -> evaluate_expr (closure # Map.insert key argument) expr
+      ValueLambda key closure expr -> evaluate_expr (closure # Value.insert key argument) expr
       ValueForeignFn fn -> fn argument
       _ -> ValueError (show f <> " is not callable")
 evaluate_expr env (ExprIdentifier key) = env # Value.lookup key
@@ -77,17 +77,17 @@ match_binder _ (BinderError) = Just Map.empty
 evaluate :: String -> Env Expr -> Env Expr
 evaluate s env = case parse_declaration s of
   DeclarationData _ constructors -> constructors
-    # Array.foldr (\(Tuple key expr) -> Map.insert key (evaluate_expr env expr)) env
-    # Map.insert "_" (ValueArray (constructors <#> snd <#> evaluate_expr env))
+    # Array.foldr (\(Tuple key expr) -> Value.insert key (evaluate_expr env expr)) env
+    # Value.insert "_" (ValueArray (constructors <#> snd <#> evaluate_expr env))
   DeclarationValue name expr ->
     let
       value = evaluate_expr env expr
     in
       env
-        # Map.insert name value
-        # Map.insert "_" value
+        # Value.insert name value
+        # Value.insert "_" value
   DeclarationFixity _ _ _ _ -> env
-  DeclarationError -> env # Map.insert "_" (evaluate_expr env (parse_expression s))
+  DeclarationError -> env # Value.insert "_" (evaluate_expr env (parse_expression s))
 
 print :: Env Expr -> String
 print env = env

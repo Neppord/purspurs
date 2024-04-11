@@ -4,15 +4,13 @@ import Prelude
 
 import Data.Maybe (Maybe(..), isNothing)
 import Data.Tuple (Tuple(Tuple), snd)
-import Data.Tuple.Nested ((/\))
 import Parser (parse_declaration, parse_expression)
 import PursPurs.Declaration (Declaration(..))
 import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, BinderVariable, BinderWildcard), Expr(..))
-import PursPurs.Value (Env, Value(..))
-import Data.Array (any, catMaybes, findMap, foldr, fromFoldable) as Array
-import Data.Map (keys) as Map
-import Data.Map.Internal (empty, fromFoldable, singleton, union) as Map
-import PursPurs.Value (insert, lookup) as Value
+import PursPurs.Value (Env, Value(..), Values)
+import Data.Array (any, catMaybes, findMap, foldr) as Array
+import Data.Map.Internal (empty, singleton, union) as Map
+import PursPurs.Value (empty_env, insert, insert_all, lookup, names) as Value
 
 evaluate_expr :: Env Expr -> Expr -> Value Expr
 evaluate_expr _ (ExprValue value) = value
@@ -29,7 +27,7 @@ evaluate_expr env (ExprArray values) = ValueArray (values <#> evaluate_expr env)
 evaluate_expr env (ExprConstructor name values) = ValueConstructor name (values <#> evaluate_expr env)
 evaluate_expr env (ExprLet m expr) =
   let
-    new_env = Map.union (m <#> evaluate_expr env) env
+    new_env = Value.insert_all (m <#> evaluate_expr env) env
   in
     evaluate_expr new_env expr
 evaluate_expr env (ExprLambda p e) = ValueLambda p env e
@@ -50,10 +48,10 @@ evaluate_expr env (ExprCase expr branches) =
     if bad_case_of then ValueError "Bad case of"
     else case branches # Array.findMap \(Tuple b expr_) -> match_binder value b <#> Tuple expr_ of
       Nothing -> ValueError "No matching branch in case of"
-      Just (Tuple expr_ env_) -> evaluate_expr (Map.union env env_) expr_
+      Just (Tuple expr_ values) -> evaluate_expr (Value.insert_all values env) expr_
 evaluate_expr _ _ = ValueError "?"
 
-match_binder :: Value Expr -> Binder -> Maybe (Env Expr)
+match_binder :: Value Expr -> Binder -> Maybe (Values Expr)
 match_binder value (BinderVariable name) = Just (Map.singleton name value)
 match_binder _ (BinderWildcard) = Just Map.empty
 match_binder value (BinderValue value_) =
@@ -95,18 +93,21 @@ print env = env
   # show
 
 names :: Env Expr -> Array String
-names env = Map.keys env # Array.fromFoldable
+names = Value.names
 
 default_env :: Env Expr
-default_env = Map.fromFoldable
-  [ "add" /\ ValueForeignFn case _ of
-      ValueInt x -> ValueForeignFn case _ of
-        ValueInt y -> ValueInt (x + y)
-        _ -> ValueError "Expected Int"
-      _ -> ValueError "Expected Int"
-  , "mul" /\ ValueForeignFn case _ of
-      ValueInt x -> ValueForeignFn case _ of
-        ValueInt y -> ValueInt (x * y)
-        _ -> ValueError "Expected Int"
-      _ -> ValueError "Expected Int"
-  ]
+default_env = Value.empty_env
+  # Value.insert "add"
+      ( ValueForeignFn case _ of
+          ValueInt x -> ValueForeignFn case _ of
+            ValueInt y -> ValueInt (x + y)
+            _ -> ValueError "Expected Int"
+          _ -> ValueError "Expected Int"
+      )
+  # Value.insert "mul"
+      ( ValueForeignFn case _ of
+          ValueInt x -> ValueForeignFn case _ of
+            ValueInt y -> ValueInt (x * y)
+            _ -> ValueError "Expected Int"
+          _ -> ValueError "Expected Int"
+      )

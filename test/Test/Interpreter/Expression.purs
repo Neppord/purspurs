@@ -8,10 +8,11 @@ import PursPurs.Expression (Expr(..))
 import PursPurs.Value (Value(..))
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)
-import Data.Map (empty, singleton) as Map
+import PursPurs.Value (empty_env, insert) as Value
+
 
 simple_eval :: String -> Value Expr
-simple_eval expr = evaluate_expr Map.empty (parse_expression expr)
+simple_eval expr = evaluate_expr Value.empty_env (parse_expression expr)
 
 spec :: Spec Unit
 spec = describe "expression interptreter" do
@@ -21,35 +22,37 @@ spec = describe "expression interptreter" do
     let
       x = ValueInt 42
       ast = parse_expression "x"
-      env = Map.singleton "x" x
+      env = Value.empty_env # Value.insert "x" x
     evaluate_expr env ast # shouldEqual x
   it "handle parenthesis" do
     let
       ast = parse_expression "(42)"
-      env = Map.empty
+      env = Value.empty_env
     evaluate_expr env ast # shouldEqual (ValueInt 42)
   it "applyes functions" do
     let
-      f = ValueLambda "x" Map.empty $ ExprIdentifier "x"
+      f = ValueLambda "x" Value.empty_env $ ExprIdentifier "x"
       ast = parse_expression "f 42"
-      env = Map.singleton "f" f
+      env = Value.empty_env # Value.insert "f" f
     evaluate_expr env ast # shouldEqual (ValueInt 42)
   it "applyes Constructor" do
     let
       ast = parse_expression "Foo 42"
-      env = Map.singleton "Foo"
-        $ ValueLambda "$0" Map.empty
-        $ ExprConstructor "Foo" [ ExprIdentifier "$0" ]
+      env = Value.empty_env #
+        ( Value.insert "Foo"
+            $ ValueLambda "$0" Value.empty_env
+            $ ExprConstructor "Foo" [ ExprIdentifier "$0" ]
+        )
     evaluate_expr env ast # shouldEqual (ValueConstructor "Foo" [ ValueInt 42 ])
   it "handle if-else is true" do
     let
       ast = parse_expression "if true then 1 else 2"
-      env = Map.empty
+      env = Value.empty_env
     evaluate_expr env ast # shouldEqual (ValueInt 1)
   it "handle if-else is false" do
     let
       ast = parse_expression "if false then 1 else 2"
-      env = Map.empty
+      env = Value.empty_env
     evaluate_expr env ast # shouldEqual (ValueInt 2)
 
 foreign_ :: Spec Unit
@@ -59,7 +62,7 @@ foreign_ = describe "handle foregin" do
       inc = ValueForeignFn case _ of
         ValueInt i -> ValueInt (1 + i)
         _ -> ValueError "Expected Int"
-    evaluate_expr (Map.singleton "inc" inc) (parse_expression "inc 42")
+    evaluate_expr (Value.empty_env # Value.insert "inc" inc) (parse_expression "inc 42")
       # shouldEqual (ValueInt 43)
 
 literals :: Spec Unit

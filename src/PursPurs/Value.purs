@@ -1,22 +1,35 @@
 module PursPurs.Value where
 
 import Prelude
+
 import Data.Map.Internal (Map)
-import Data.Array (intercalate, null) as Array
-import Data.Map.Internal (insert, lookup) as Map
+import Data.Array (fromFoldable, intercalate, null) as Array
+import Data.Map.Internal (empty, insert, lookup, union) as Map
 import Data.Maybe (fromMaybe) as Maybe
+import Data.Map (keys) as Map
 
-type Env expr = Map String (Value expr)
+type Values expr = Map String (Value expr)
+type Env expr = { values :: Values expr }
 
-cant_find ::forall expr. String -> Value expr
+empty_env :: forall expr. Env expr
+empty_env = { values: Map.empty }
+
+insert_all :: forall expr. Values expr -> Env expr -> Env expr
+insert_all values env = env { values = Map.union env.values values }
+
+cant_find :: forall expr. String -> Value expr
 cant_find key = ValueError $ "Could not find " <> key <> " in scope"
 
 lookup :: forall expr. String -> Env expr -> Value expr
-lookup key env = Map.lookup key env
+lookup key env = env.values
+  # Map.lookup key
   # Maybe.fromMaybe (cant_find key)
 
 insert :: forall expr. String -> Value expr -> Env expr -> Env expr
-insert = Map.insert
+insert key value env = env { values = Map.insert key value env.values }
+
+names :: forall expr. Env expr -> Array String
+names env = Map.keys env.values # Array.fromFoldable
 
 data Value expr
   = ValueVoid

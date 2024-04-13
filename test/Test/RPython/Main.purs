@@ -30,9 +30,7 @@ compile_path (CST.Separated { head, tail }) =
   let
     all = [ head ] <> (tail <#> snd)
   in
-    all
-      <#> compile_name_label
-      # intercalate "."
+    all <#> compile_name_label # intercalate "."
 
 compile_name_label :: CST.Name CST.Label -> String
 compile_name_label (CST.Name { name: CST.Label name }) = name

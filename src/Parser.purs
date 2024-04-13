@@ -15,7 +15,7 @@ import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, 
 import PursPurs.Fixity (Fixity(..))
 import PursPurs.Value (Value(..))
 import Data.Array (foldl, foldr, mapWithIndex) as Array
-import PureScript.CST.Types (AppSpine(..), Binder(..), DataCtor(..), Declaration(..), Expr(..), FixityOp(FixityValue), Guarded(..), Ident(..), IntValue(..), LetBinding(LetBindingName), Name(..), Operator(Operator), Proper(..), QualifiedName(..), Separated(..), Where(..), Wrapped(..)) as CST
+import PureScript.CST.Types (AppSpine(..), Binder(..), DataCtor(..), Declaration(..), Expr(..), Fixity(Infix, Infixl, Infixr), FixityOp(FixityValue), Guarded(..), Ident(..), IntValue(..), LetBinding(LetBindingName), Name(..), Operator(Operator), Proper(..), QualifiedName(..), Separated(..), Where(..), Wrapped(..)) as CST
 import Data.Map.Internal (fromFoldable) as Map
 
 parse_expression :: String -> Expr
@@ -39,7 +39,7 @@ expression_from_CST e = case e of
   CST.ExprIdent (CST.QualifiedName { name: CST.Ident name }) -> ExprIdentifier name
   CST.ExprLambda { binders: NonEmptyArray [ CST.BinderVar (CST.Name { name: CST.Ident name }) ], body } ->
     ExprLambda name (expression_from_CST body)
-  CST.ExprOp l (NonEmptyArray [ CST.QualifiedName {name:CST.Operator op} /\ r ]) ->
+  CST.ExprOp l (NonEmptyArray [ CST.QualifiedName { name: CST.Operator op } /\ r ]) ->
     let
       l_ = expression_from_CST l
       r_ = expression_from_CST r
@@ -102,7 +102,16 @@ parse_declaration declaration = case parseDecl declaration of
           (CST.QualifiedName { name: Left (CST.Ident name) })
           _
           (CST.Name { name: CST.Operator operator })
-      } -> DeclarationFixity Infixl precedence name operator
+      , keyword: Tuple _ fixity
+      } -> DeclarationFixity
+      ( case fixity of
+          CST.Infix -> Infix
+          CST.Infixl -> Infixl
+          CST.Infixr -> Infixr
+      )
+      precedence
+      name
+      operator
     CST.DeclData { name: CST.Name { name: CST.Proper name } } a -> DeclarationData name case a of
       Nothing -> []
       Just (Tuple _ (CST.Separated { head, tail })) ->

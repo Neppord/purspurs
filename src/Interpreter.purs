@@ -143,5 +143,13 @@ default_env = Value.empty_env
             _ -> ValueError "Expected Int"
           _ -> ValueError "Expected Int"
       )
+  # Value.insert "eq"
+      ( ValueForeignFn case _ of
+          ValueInt x -> ValueForeignFn case _ of
+            ValueInt y -> ValueBoolean (x == y)
+            _ -> ValueError "Expected Int"
+          _ -> ValueError "Expected Int"
+      )
   # evaluate "infixl 6 add as +"
   # evaluate "infixl 7 mul as *"
+  # evaluate "infix 4 eq as =="

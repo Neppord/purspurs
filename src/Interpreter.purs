@@ -6,12 +6,11 @@ import Data.Maybe (Maybe(..), isNothing)
 import Data.Tuple (Tuple(Tuple), snd)
 import Parser (parse_declaration, parse_expression)
 import PursPurs.Declaration (Declaration(..))
-import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, BinderVariable, BinderWildcard), Expr(..), Expr(ExprApp))
+import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, BinderVariable, BinderWildcard), Expr(..))
 import PursPurs.Value (Env, Value(..), Values)
 import Data.Array (any, catMaybes, findMap, foldr) as Array
 import Data.Map.Internal (empty, singleton, union) as Map
 import PursPurs.Value (empty_env, insert, insert_all, insert_operator, lookup, lookup_operator, names) as Value
-import PursPurs.Operator (Operator)
 
 evaluate_expr :: Env Expr -> Expr -> Value Expr
 evaluate_expr _ (ExprValue value) = value
@@ -21,18 +20,18 @@ evaluate_expr env (ExprOp l op r) =
     right_value = evaluate_expr env r
   in
     case env # Value.lookup_operator op of
-      Just {operation} -> case operation of
+      Just { operation } -> case operation of
         ValueLambda left_key left_closure expr ->
           case evaluate_expr (left_closure # Value.insert left_key left_value) expr of
-            ValueLambda right_key right_closure expr ->
-              evaluate_expr (right_closure # Value.insert right_key right_value) expr
+            ValueLambda right_key right_closure expr_ ->
+              evaluate_expr (right_closure # Value.insert right_key right_value) expr_
             ValueForeignFn fn -> fn right_value
             _ -> ValueError (op <> " only takes one argument, but must take two")
         ValueForeignFn fn ->
           case fn left_value of
             ValueLambda right_key right_closure expr ->
               evaluate_expr (right_closure # Value.insert right_key right_value) expr
-            ValueForeignFn fn -> fn right_value
+            ValueForeignFn fn_ -> fn_ right_value
             _ -> ValueError (op <> " only takes one argument, but must take two")
         _ -> ValueError ("Cant find " <> op <> " in scope")
       _ -> ValueError ("Cant find " <> op <> " in scope")
@@ -144,3 +143,5 @@ default_env = Value.empty_env
             _ -> ValueError "Expected Int"
           _ -> ValueError "Expected Int"
       )
+  # evaluate "infixl 6 add as +"
+  # evaluate "infixl 7 mul as *"

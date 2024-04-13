@@ -68,5 +68,5 @@ main = launchAff_ $ runSpec [ specReporter ] do
       """
         ] # shouldEqual "true"
     it "handles session with operator" do
-      run_program [ "infixl 6 add as +" , "1 + 2" ] # shouldEqual "3"
+      run_program [ "1 + 2" ] # shouldEqual "3"
 

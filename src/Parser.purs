@@ -39,6 +39,12 @@ expression_from_CST e = case e of
   CST.ExprIdent (CST.QualifiedName { name: CST.Ident name }) -> ExprIdentifier name
   CST.ExprLambda { binders: NonEmptyArray [ CST.BinderVar (CST.Name { name: CST.Ident name }) ], body } ->
     ExprLambda name (expression_from_CST body)
+  CST.ExprOp l (NonEmptyArray [ CST.QualifiedName {name:CST.Operator op} /\ r ]) ->
+    let
+      l_ = expression_from_CST l
+      r_ = expression_from_CST r
+    in
+      ExprOp l_ op r_
   CST.ExprApp function (NonEmptyArray arguments) ->
     arguments # Array.foldl
       ( \f -> case _ of

@@ -8,14 +8,15 @@ import Data.Map.Internal (empty, insert, lookup, union) as Map
 import Data.Maybe (fromMaybe) as Maybe
 import Data.Map (keys) as Map
 import PursPurs.Operator (Operator)
+import Data.Maybe (Maybe)
 
 
 
 type Values expr = Map String (Value expr)
-type Operators expr = Map String (Operator expr)
+type Operators value = Map String (Operator value)
 type Env expr =
   { values :: Values expr
-  , operators :: Operators expr
+  , operators :: Operators (Value expr)
   }
 
 empty_env :: forall expr. Env expr
@@ -32,8 +33,15 @@ lookup key env = env.values
   # Map.lookup key
   # Maybe.fromMaybe (cant_find key)
 
+lookup_operator :: forall expr. String -> Env expr -> Maybe (Operator (Value expr))
+lookup_operator key env = env.operators
+  # Map.lookup key
+
 insert :: forall expr. String -> Value expr -> Env expr -> Env expr
 insert key value env = env { values = Map.insert key value env.values }
+
+insert_operator :: forall expr. String -> Operator (Value expr) -> Env expr -> Env expr
+insert_operator key operator env = env { operators = Map.insert key operator env.operators }
 
 names :: forall expr. Env expr -> Array String
 names env = Map.keys env.values # Array.fromFoldable

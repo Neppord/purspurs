@@ -6,14 +6,37 @@ import Data.Maybe (Maybe(..), isNothing)
 import Data.Tuple (Tuple(Tuple), snd)
 import Parser (parse_declaration, parse_expression)
 import PursPurs.Declaration (Declaration(..))
-import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, BinderVariable, BinderWildcard), Expr(..))
+import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, BinderVariable, BinderWildcard), Expr(..), Expr(ExprApp))
 import PursPurs.Value (Env, Value(..), Values)
 import Data.Array (any, catMaybes, findMap, foldr) as Array
 import Data.Map.Internal (empty, singleton, union) as Map
-import PursPurs.Value (empty_env, insert, insert_all, lookup, names) as Value
+import PursPurs.Value (empty_env, insert, insert_all, insert_operator, lookup, lookup_operator, names) as Value
+import PursPurs.Operator (Operator)
 
 evaluate_expr :: Env Expr -> Expr -> Value Expr
 evaluate_expr _ (ExprValue value) = value
+evaluate_expr env (ExprOp l op r) =
+  let
+    left_value = evaluate_expr env l
+    right_value = evaluate_expr env r
+  in
+    case env # Value.lookup_operator op of
+      Just {operation} -> case operation of
+        ValueLambda left_key left_closure expr ->
+          case evaluate_expr (left_closure # Value.insert left_key left_value) expr of
+            ValueLambda right_key right_closure expr ->
+              evaluate_expr (right_closure # Value.insert right_key right_value) expr
+            ValueForeignFn fn -> fn right_value
+            _ -> ValueError (op <> " only takes one argument, but must take two")
+        ValueForeignFn fn ->
+          case fn left_value of
+            ValueLambda right_key right_closure expr ->
+              evaluate_expr (right_closure # Value.insert right_key right_value) expr
+            ValueForeignFn fn -> fn right_value
+            _ -> ValueError (op <> " only takes one argument, but must take two")
+        _ -> ValueError ("Cant find " <> op <> " in scope")
+      _ -> ValueError ("Cant find " <> op <> " in scope")
+
 evaluate_expr env (ExprApp f a) =
   let
     argument = evaluate_expr env a
@@ -84,7 +107,17 @@ evaluate s env = case parse_declaration s of
       env
         # Value.insert name value
         # Value.insert "_" value
-  DeclarationFixity _ _ _ _ -> env
+  DeclarationFixity fixity precedence function operator_name ->
+    let
+      operation = env # Value.lookup function
+      operator =
+        { operation
+        , precedence
+        , fixity
+        }
+    in
+      env # Value.insert_operator operator_name operator
+
   DeclarationError -> env # Value.insert "_" (evaluate_expr env (parse_expression s))
 
 print :: Env Expr -> String

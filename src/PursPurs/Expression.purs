@@ -39,6 +39,7 @@ data Expr
   | ExprValue (Value Expr)
   | ExprArray (Array Expr)
   | ExprApp Expr Expr
+  | ExprOp Expr String Expr
   | ExprLet (Map String Expr) Expr
   | ExprIfElse Expr Expr Expr
   | ExprCase Expr (Array (Tuple Binder Expr))
@@ -49,6 +50,7 @@ instance Show Expr where
   show ExprError = "<Expr Error>"
   show (ExprValue value) = show value
   show (ExprApp f x) = "(" <> show f <> " " <> show x <> ")"
+  show (ExprOp l op r) = "(" <> show l <> " " <> op <> " " <> show r <> ")"
   show (ExprIfElse i t e) = "(if " <> show i <> " then " <> show t <> " else " <> show e <> ")"
   show (ExprLet m expr) = "(let\n"
     <> (m # mapWithIndex (\k v -> "  " <> k <> " = " <> show v) # Map.values # List.intercalate "\n")
@@ -67,6 +69,7 @@ instance Eq Expr where
   eq (ExprIdentifier x) (ExprIdentifier y) = x == y
   eq (ExprValue x) (ExprValue y) = x == y
   eq (ExprApp f x) (ExprApp g y) = x == y && f == g
+  eq (ExprOp l op r) (ExprOp l_ op_ r_) = l == l_ && op == op_ && r == r_
   eq (ExprIfElse i t e) (ExprIfElse i_ t_ e_) = i == i_ && t == t_ && e == e_
   eq (ExprCase m b) (ExprCase m_ b_) = m == m_ && b == b_
   eq (ExprLet f x) (ExprLet g y) = x == y && f == g

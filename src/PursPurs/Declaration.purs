@@ -5,15 +5,7 @@ import Prelude
 import Data.Tuple (Tuple)
 import PursPurs.Expression (Expr)
 import Data.Array (intercalate) as Array
-
-data Fixity = Infixl
-
-instance showFixity :: Show Fixity where
-    show Infixl = "infixl"
-
-instance Eq Fixity where
-    eq Infixl Infixl = true
-    -- eq _ _ = false
+import PursPurs.Fixity (Fixity)
 
 data Declaration
   = DeclarationError

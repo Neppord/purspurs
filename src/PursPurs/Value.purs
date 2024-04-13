@@ -7,12 +7,19 @@ import Data.Array (fromFoldable, intercalate, null) as Array
 import Data.Map.Internal (empty, insert, lookup, union) as Map
 import Data.Maybe (fromMaybe) as Maybe
 import Data.Map (keys) as Map
+import PursPurs.Operator (Operator)
+
+
 
 type Values expr = Map String (Value expr)
-type Env expr = { values :: Values expr }
+type Operators expr = Map String (Operator expr)
+type Env expr =
+  { values :: Values expr
+  , operators :: Operators expr
+  }
 
 empty_env :: forall expr. Env expr
-empty_env = { values: Map.empty }
+empty_env = { values: Map.empty, operators: Map.empty}
 
 insert_all :: forall expr. Values expr -> Env expr -> Env expr
 insert_all values env = env { values = Map.union env.values values }

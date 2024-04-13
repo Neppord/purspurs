@@ -3,19 +3,20 @@ module Parser where
 import Prelude
 
 import Data.Array.NonEmpty.Internal (NonEmptyArray(NonEmptyArray))
+import Data.Either (Either(Left))
 import Data.Int (fromString)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Tuple (Tuple(Tuple), snd)
 import Data.Tuple.Nested ((/\))
 import PureScript.CST (RecoveredParserResult(ParseSucceeded), parseDecl, parseExpr)
 import PureScript.CST.Types (IntValue(SmallInt))
-import PursPurs.Declaration (Declaration(DeclarationData, DeclarationError, DeclarationFixity, DeclarationValue), Fixity(Infixl))
+import PursPurs.Declaration (Declaration(DeclarationData, DeclarationError, DeclarationFixity, DeclarationValue))
 import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, BinderVariable, BinderWildcard), Expr(..))
+import PursPurs.Fixity (Fixity(..))
 import PursPurs.Value (Value(..))
 import Data.Array (foldl, foldr, mapWithIndex) as Array
 import PureScript.CST.Types (AppSpine(..), Binder(..), DataCtor(..), Declaration(..), Expr(..), FixityOp(FixityValue), Guarded(..), Ident(..), IntValue(..), LetBinding(LetBindingName), Name(..), Operator(Operator), Proper(..), QualifiedName(..), Separated(..), Where(..), Wrapped(..)) as CST
 import Data.Map.Internal (fromFoldable) as Map
-import Data.Either (Either(Left))
 
 parse_expression :: String -> Expr
 parse_expression expr = case parseExpr expr of

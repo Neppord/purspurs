@@ -4,8 +4,9 @@ import Prelude
 
 import Data.Tuple.Nested ((/\))
 import Parser (parse_declaration)
-import PursPurs.Declaration (Declaration(DeclarationData, DeclarationFixity, DeclarationValue), Fixity(Infixl))
+import PursPurs.Declaration (Declaration(DeclarationData, DeclarationFixity, DeclarationValue))
 import PursPurs.Expression (Expr(..))
+import PursPurs.Fixity (Fixity(..))
 import PursPurs.Value (Value(..))
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)

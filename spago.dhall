@@ -25,6 +25,7 @@ to generate this file without the comments in this block.
   , "ordered-collections"
   , "prelude"
   , "spec"
+  , "strings"
   , "tuples"
   ]
 , packages = ./packages.dhall

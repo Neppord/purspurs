@@ -33,13 +33,9 @@ evaluate_expr env (ExprOp l op r) =
         _ -> ValueError ("Cant find " <> op <> " in scope")
       _ -> ValueError ("Cant find " <> op <> " in scope")
 
-evaluate_expr env (ExprApp f a) =
-  let
-    argument = evaluate_expr env a
-  in
-    case evaluate_expr env f of
-      ValueCallable c -> call c argument
-      _ -> ValueError (show f <> " is not callable")
+evaluate_expr env (ExprApp f a) = case evaluate_expr env f of
+  ValueCallable c -> call c (evaluate_expr env a)
+  _ -> ValueError (show f <> " is not callable")
 evaluate_expr env (ExprIdentifier key) = env # Value.lookup key
 evaluate_expr env (ExprArray values) = ValueArray (values <#> evaluate_expr env)
 evaluate_expr env (ExprConstructor name values) = ValueConstructor name (values <#> evaluate_expr env)

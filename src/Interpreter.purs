@@ -12,22 +12,22 @@ import Data.Array (any, catMaybes, findMap, foldr) as Array
 import Data.Map.Internal (empty, singleton, union) as Map
 import PursPurs.Value (empty_env, insert, insert_all, insert_operator, lookup, lookup_callable, lookup_operator, names) as Value
 
-call :: Callable Expr -> Value Expr -> Value Expr
-call (CallableError msg) _ = ValueError msg
-call (ValueForeignFn fn) arg = fn arg
-call (ValueLambda key closure expr) arg =
+evaluate_call :: Callable Expr -> Value Expr -> Value Expr
+evaluate_call (CallableError msg) _ = ValueError msg
+evaluate_call (ValueForeignFn fn) arg = fn arg
+evaluate_call (ValueLambda key closure expr) arg =
   evaluate_expr (closure # Value.insert key arg) expr
 
 evaluate_expr :: Env Expr -> Expr -> Value Expr
 evaluate_expr _ (ExprValue value) = value
 evaluate_expr env (ExprOp l op r) = case env # Value.lookup_operator op of
-  Just { operation } -> case call operation (evaluate_expr env l) of
-    ValueCallable c_ -> call c_ (evaluate_expr env r)
+  Just { operation } -> case evaluate_call operation (evaluate_expr env l) of
+    ValueCallable c_ -> evaluate_call c_ (evaluate_expr env r)
     _ -> ValueError (op <> " only takes one argument, but must take two")
   _ -> ValueError ("Cant find " <> op <> " in scope")
 
 evaluate_expr env (ExprApp f a) = case evaluate_expr env f of
-  ValueCallable c -> call c (evaluate_expr env a)
+  ValueCallable c -> evaluate_call c (evaluate_expr env a)
   _ -> ValueError (show f <> " is not callable")
 evaluate_expr env (ExprIdentifier key) = env # Value.lookup key
 evaluate_expr env (ExprArray values) = ValueArray (values <#> evaluate_expr env)

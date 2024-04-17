@@ -33,10 +33,7 @@ evaluate_expr env (ExprIdentifier key) = env # Value.lookup key
 evaluate_expr env (ExprArray values) = ValueArray (values <#> evaluate_expr env)
 evaluate_expr env (ExprConstructor name values) = ValueConstructor name (values <#> evaluate_expr env)
 evaluate_expr env (ExprLet m expr) =
-  let
-    new_env = Value.insert_all (m <#> evaluate_expr env) env
-  in
-    evaluate_expr new_env expr
+  evaluate_expr (Value.insert_all (m <#> evaluate_expr env) env) expr
 evaluate_expr env (ExprLambda p e) = ValueCallable (ValueLambda p env e)
 evaluate_expr env (ExprIfElse i t e) = case evaluate_expr env i of
   ValueBoolean true -> evaluate_expr env t

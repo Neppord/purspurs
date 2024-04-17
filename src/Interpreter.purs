@@ -7,11 +7,15 @@ import Data.Tuple (Tuple(Tuple), snd)
 import Parser (parse_declaration, parse_expression)
 import PursPurs.Declaration (Declaration(..))
 import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, BinderVariable, BinderWildcard), Expr(..))
-import PursPurs.Value (Callable(ValueForeignFn), Callable(ValueLambda), Env, Value(..), Values)
+import PursPurs.Value (Callable(ValueForeignFn, ValueLambda), Env, Value(..), Values)
 import Data.Array (any, catMaybes, findMap, foldr) as Array
 import Data.Map.Internal (empty, singleton, union) as Map
 import PursPurs.Value (empty_env, insert, insert_all, insert_operator, lookup, lookup_operator, names) as Value
 
+call :: Callable Expr -> Value Expr -> Value Expr
+call (ValueForeignFn fn) arg = fn arg
+call (ValueLambda key closure expr) arg =
+  evaluate_expr (closure # Value.insert key arg) expr
 
 evaluate_expr :: Env Expr -> Expr -> Value Expr
 evaluate_expr _ (ExprValue value) = value
@@ -22,17 +26,9 @@ evaluate_expr env (ExprOp l op r) =
   in
     case env # Value.lookup_operator op of
       Just { operation } -> case operation of
-        ValueCallable (ValueLambda left_key left_closure expr) ->
-          case evaluate_expr (left_closure # Value.insert left_key left_value) expr of
-            ValueCallable (ValueLambda right_key right_closure expr_) ->
-              evaluate_expr (right_closure # Value.insert right_key right_value) expr_
-            ValueCallable (ValueForeignFn fn) -> fn right_value
-            _ -> ValueError (op <> " only takes one argument, but must take two")
-        ValueCallable (ValueForeignFn fn) ->
-          case fn left_value of
-            ValueCallable (ValueLambda right_key right_closure expr) ->
-              evaluate_expr (right_closure # Value.insert right_key right_value) expr
-            ValueCallable (ValueForeignFn fn_) -> fn_ right_value
+        ValueCallable c ->
+          case call c left_value of
+            ValueCallable c_ -> call c_ right_value
             _ -> ValueError (op <> " only takes one argument, but must take two")
         _ -> ValueError ("Cant find " <> op <> " in scope")
       _ -> ValueError ("Cant find " <> op <> " in scope")
@@ -42,8 +38,7 @@ evaluate_expr env (ExprApp f a) =
     argument = evaluate_expr env a
   in
     case evaluate_expr env f of
-      ValueCallable (ValueLambda key closure expr) -> evaluate_expr (closure # Value.insert key argument) expr
-      ValueCallable (ValueForeignFn fn) -> fn argument
+      ValueCallable c -> call c argument
       _ -> ValueError (show f <> " is not callable")
 evaluate_expr env (ExprIdentifier key) = env # Value.lookup key
 evaluate_expr env (ExprArray values) = ValueArray (values <#> evaluate_expr env)

@@ -5,11 +5,10 @@ import Prelude
 import Interpreter (evaluate_expr)
 import Parser (parse_expression)
 import PursPurs.Expression (Expr(..))
-import PursPurs.Value (Callable(ValueForeignFn), Callable(ValueLambda), Value(..))
+import PursPurs.Value (Callable(ValueForeignFn, ValueLambda), Value(..))
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)
 import PursPurs.Value (empty_env, insert) as Value
-
 
 simple_eval :: String -> Value Expr
 simple_eval expr = evaluate_expr Value.empty_env (parse_expression expr)

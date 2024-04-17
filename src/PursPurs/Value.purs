@@ -10,17 +10,15 @@ import Data.Map (keys) as Map
 import PursPurs.Operator (Operator)
 import Data.Maybe (Maybe)
 
-
-
 type Values expr = Map String (Value expr)
 type Operators value = Map String (Operator value)
 type Env expr =
   { values :: Values expr
-  , operators :: Operators (Value expr)
+  , operators :: Operators (Callable expr)
   }
 
 empty_env :: forall expr. Env expr
-empty_env = { values: Map.empty, operators: Map.empty}
+empty_env = { values: Map.empty, operators: Map.empty }
 
 insert_all :: forall expr. Values expr -> Env expr -> Env expr
 insert_all values env = env { values = Map.union env.values values }
@@ -33,14 +31,20 @@ lookup key env = env.values
   # Map.lookup key
   # Maybe.fromMaybe (cant_find key)
 
-lookup_operator :: forall expr. String -> Env expr -> Maybe (Operator (Value expr))
+lookup_callable :: forall expr. String -> Env expr -> Callable expr
+lookup_callable key env = lookup key env # case _ of
+  ValueCallable c -> c
+  ValueError msg -> CallableError msg
+  _ -> CallableError (key <> " is not callable")
+
+lookup_operator :: forall expr. String -> Env expr -> Maybe (Operator (Callable expr))
 lookup_operator key env = env.operators
   # Map.lookup key
 
 insert :: forall expr. String -> Value expr -> Env expr -> Env expr
 insert key value env = env { values = Map.insert key value env.values }
 
-insert_operator :: forall expr. String -> Operator (Value expr) -> Env expr -> Env expr
+insert_operator :: forall expr. String -> Operator (Callable expr) -> Env expr -> Env expr
 insert_operator key operator env = env { operators = Map.insert key operator env.operators }
 
 names :: forall expr. Env expr -> Array String
@@ -61,11 +65,12 @@ data Value expr
 data Callable expr
   = ValueLambda String (Env expr) expr
   | ValueForeignFn (Value expr -> Value expr)
-
+  | CallableError String
 
 instance Show expr => Show (Callable expr) where
   show (ValueForeignFn _) = "<foreign>"
   show (ValueLambda param _ expr) = "(\\" <> param <> " -> " <> show expr <> ")"
+  show (CallableError msg) = "<Call Error: " <> msg <> ">"
 
 instance Eq expr => Eq (Callable expr) where
   eq (ValueLambda param env expr) (ValueLambda param_ env_ expr_) =

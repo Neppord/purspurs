@@ -7,12 +7,13 @@ import Data.Tuple (Tuple(Tuple), snd)
 import Parser (parse_declaration, parse_expression)
 import PursPurs.Declaration (Declaration(..))
 import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, BinderVariable, BinderWildcard), Expr(..))
-import PursPurs.Value (Callable(ValueForeignFn, ValueLambda), Env, Value(..), Values)
+import PursPurs.Value (Callable(CallableError, ValueForeignFn, ValueLambda), Env, Value(..), Values)
 import Data.Array (any, catMaybes, findMap, foldr) as Array
 import Data.Map.Internal (empty, singleton, union) as Map
-import PursPurs.Value (empty_env, insert, insert_all, insert_operator, lookup, lookup_operator, names) as Value
+import PursPurs.Value (empty_env, insert, insert_all, insert_operator, lookup, lookup_callable, lookup_operator, names) as Value
 
 call :: Callable Expr -> Value Expr -> Value Expr
+call (CallableError msg) _ = ValueError msg
 call (ValueForeignFn fn) arg = fn arg
 call (ValueLambda key closure expr) arg =
   evaluate_expr (closure # Value.insert key arg) expr
@@ -20,11 +21,9 @@ call (ValueLambda key closure expr) arg =
 evaluate_expr :: Env Expr -> Expr -> Value Expr
 evaluate_expr _ (ExprValue value) = value
 evaluate_expr env (ExprOp l op r) = case env # Value.lookup_operator op of
-  Just { operation } -> case operation of
-    ValueCallable c -> case call c (evaluate_expr env l) of
-      ValueCallable c_ -> call c_ (evaluate_expr env r)
-      _ -> ValueError (op <> " only takes one argument, but must take two")
-    _ -> ValueError ("Cant find " <> op <> " in scope")
+  Just { operation } -> case call operation (evaluate_expr env l) of
+    ValueCallable c_ -> call c_ (evaluate_expr env r)
+    _ -> ValueError (op <> " only takes one argument, but must take two")
   _ -> ValueError ("Cant find " <> op <> " in scope")
 
 evaluate_expr env (ExprApp f a) = case evaluate_expr env f of
@@ -94,7 +93,7 @@ evaluate s env = case parse_declaration s of
         # Value.insert "_" value
   DeclarationFixity fixity precedence function operator_name ->
     let
-      operation = env # Value.lookup function
+      operation = env # Value.lookup_callable function
       operator =
         { operation
         , precedence

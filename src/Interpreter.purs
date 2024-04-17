@@ -7,15 +7,15 @@ import Data.Tuple (Tuple(Tuple), snd)
 import Parser (parse_declaration, parse_expression)
 import PursPurs.Declaration (Declaration(..))
 import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, BinderVariable, BinderWildcard), Expr(..))
-import PursPurs.Value (Callable(CallableError, ValueForeignFn, ValueLambda), Env, Value(..), Values)
+import PursPurs.Value (Callable(..), Env, Value(..), Values)
 import Data.Array (any, catMaybes, findMap, foldr) as Array
 import Data.Map.Internal (empty, singleton, union) as Map
 import PursPurs.Value (empty_env, insert, insert_all, insert_operator, lookup, lookup_callable, lookup_operator, names) as Value
 
 evaluate_call :: Callable Expr -> Value Expr -> Value Expr
 evaluate_call (CallableError msg) _ = ValueError msg
-evaluate_call (ValueForeignFn fn) arg = fn arg
-evaluate_call (ValueLambda key closure expr) arg =
+evaluate_call (CallableForeignFn fn) arg = fn arg
+evaluate_call (CallableLambda key closure expr) arg =
   evaluate_expr (closure # Value.insert key arg) expr
 
 evaluate_expr :: Env Expr -> Expr -> Value Expr
@@ -34,7 +34,7 @@ evaluate_expr env (ExprArray values) = ValueArray (values <#> evaluate_expr env)
 evaluate_expr env (ExprConstructor name values) = ValueConstructor name (values <#> evaluate_expr env)
 evaluate_expr env (ExprLet m expr) =
   evaluate_expr (Value.insert_all (m <#> evaluate_expr env) env) expr
-evaluate_expr env (ExprLambda p e) = ValueCallable (ValueLambda p env e)
+evaluate_expr env (ExprLambda p e) = ValueCallable (CallableLambda p env e)
 evaluate_expr env (ExprIfElse i t e) = case evaluate_expr env i of
   ValueBoolean true -> evaluate_expr env t
   ValueBoolean false -> evaluate_expr env e
@@ -112,22 +112,22 @@ names = Value.names
 default_env :: Env Expr
 default_env = Value.empty_env
   # Value.insert "add"
-      ( ValueCallable $ ValueForeignFn case _ of
-          ValueInt x -> ValueCallable $ ValueForeignFn case _ of
+      ( ValueCallable $ CallableForeignFn case _ of
+          ValueInt x -> ValueCallable $ CallableForeignFn case _ of
             ValueInt y -> ValueInt (x + y)
             _ -> ValueError "Expected Int"
           _ -> ValueError "Expected Int"
       )
   # Value.insert "mul"
-      ( ValueCallable $ ValueForeignFn case _ of
-          ValueInt x -> ValueCallable $ ValueForeignFn case _ of
+      ( ValueCallable $ CallableForeignFn case _ of
+          ValueInt x -> ValueCallable $ CallableForeignFn case _ of
             ValueInt y -> ValueInt (x * y)
             _ -> ValueError "Expected Int"
           _ -> ValueError "Expected Int"
       )
   # Value.insert "eq"
-      ( ValueCallable $ ValueForeignFn case _ of
-          ValueInt x -> ValueCallable $ ValueForeignFn case _ of
+      ( ValueCallable $ CallableForeignFn case _ of
+          ValueInt x -> ValueCallable $ CallableForeignFn case _ of
             ValueInt y -> ValueBoolean (x == y)
             _ -> ValueError "Expected Int"
           _ -> ValueError "Expected Int"

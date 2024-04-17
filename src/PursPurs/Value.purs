@@ -63,17 +63,17 @@ data Value expr
   | ValueCallable (Callable expr)
 
 data Callable expr
-  = ValueLambda String (Env expr) expr
-  | ValueForeignFn (Value expr -> Value expr)
+  = CallableLambda String (Env expr) expr
+  | CallableForeignFn (Value expr -> Value expr)
   | CallableError String
 
 instance Show expr => Show (Callable expr) where
-  show (ValueForeignFn _) = "<foreign>"
-  show (ValueLambda param _ expr) = "(\\" <> param <> " -> " <> show expr <> ")"
+  show (CallableForeignFn _) = "<foreign>"
+  show (CallableLambda param _ expr) = "(\\" <> param <> " -> " <> show expr <> ")"
   show (CallableError msg) = "<Call Error: " <> msg <> ">"
 
 instance Eq expr => Eq (Callable expr) where
-  eq (ValueLambda param env expr) (ValueLambda param_ env_ expr_) =
+  eq (CallableLambda param env expr) (CallableLambda param_ env_ expr_) =
     param == param_ && env == env_ && expr == expr_
   eq _ _ = false
 

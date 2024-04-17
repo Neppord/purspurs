@@ -19,19 +19,13 @@ call (ValueLambda key closure expr) arg =
 
 evaluate_expr :: Env Expr -> Expr -> Value Expr
 evaluate_expr _ (ExprValue value) = value
-evaluate_expr env (ExprOp l op r) =
-  let
-    left_value = evaluate_expr env l
-    right_value = evaluate_expr env r
-  in
-    case env # Value.lookup_operator op of
-      Just { operation } -> case operation of
-        ValueCallable c ->
-          case call c left_value of
-            ValueCallable c_ -> call c_ right_value
-            _ -> ValueError (op <> " only takes one argument, but must take two")
-        _ -> ValueError ("Cant find " <> op <> " in scope")
-      _ -> ValueError ("Cant find " <> op <> " in scope")
+evaluate_expr env (ExprOp l op r) = case env # Value.lookup_operator op of
+  Just { operation } -> case operation of
+    ValueCallable c -> case call c (evaluate_expr env l) of
+      ValueCallable c_ -> call c_ (evaluate_expr env r)
+      _ -> ValueError (op <> " only takes one argument, but must take two")
+    _ -> ValueError ("Cant find " <> op <> " in scope")
+  _ -> ValueError ("Cant find " <> op <> " in scope")
 
 evaluate_expr env (ExprApp f a) = case evaluate_expr env f of
   ValueCallable c -> call c (evaluate_expr env a)

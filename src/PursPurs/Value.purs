@@ -55,9 +55,22 @@ data Value expr
   | ValueNumber Number
   | ValueString String
   | ValueArray (Array (Value expr))
-  | ValueLambda String (Env expr) expr
   | ValueConstructor String (Array (Value expr))
+  | ValueCallable (Callable expr)
+
+data Callable expr
+  = ValueLambda String (Env expr) expr
   | ValueForeignFn (Value expr -> Value expr)
+
+
+instance Show expr => Show (Callable expr) where
+  show (ValueForeignFn _) = "<foreign>"
+  show (ValueLambda param _ expr) = "(\\" <> param <> " -> " <> show expr <> ")"
+
+instance Eq expr => Eq (Callable expr) where
+  eq (ValueLambda param env expr) (ValueLambda param_ env_ expr_) =
+    param == param_ && env == env_ && expr == expr_
+  eq _ _ = false
 
 instance Show expr => Show (Value expr) where
   show ValueVoid = "Void"
@@ -68,8 +81,7 @@ instance Show expr => Show (Value expr) where
   show (ValueNumber s) = show s
   show (ValueArray a) = show a
   show (ValueInt i) = show i
-  show (ValueForeignFn _) = "<foreign>"
-  show (ValueLambda param _ expr) = "(\\" <> param <> " -> " <> show expr <> ")"
+  show (ValueCallable f) = show f
   show (ValueConstructor name values) =
     if Array.null values then name
     else
@@ -83,9 +95,6 @@ instance Eq expr => Eq (Value expr) where
   eq (ValueInt x) (ValueInt y) = x == y
   eq (ValueString x) (ValueString y) = x == y
   eq (ValueArray x) (ValueArray y) = x == y
-  eq (ValueLambda param env expr) (ValueLambda param_ env_ expr_) =
-    param == param_
-      && env == env_
-      && expr == expr_
+  eq (ValueCallable f) (ValueCallable f_) = f == f_
   eq (ValueConstructor name values) (ValueConstructor name_ values_) = name == name_ && values == values_
   eq _ _ = false

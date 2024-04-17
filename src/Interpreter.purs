@@ -7,10 +7,11 @@ import Data.Tuple (Tuple(Tuple), snd)
 import Parser (parse_declaration, parse_expression)
 import PursPurs.Declaration (Declaration(..))
 import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, BinderVariable, BinderWildcard), Expr(..))
-import PursPurs.Value (Env, Value(..), Values)
+import PursPurs.Value (Callable(ValueForeignFn), Callable(ValueLambda), Env, Value(..), Values)
 import Data.Array (any, catMaybes, findMap, foldr) as Array
 import Data.Map.Internal (empty, singleton, union) as Map
 import PursPurs.Value (empty_env, insert, insert_all, insert_operator, lookup, lookup_operator, names) as Value
+
 
 evaluate_expr :: Env Expr -> Expr -> Value Expr
 evaluate_expr _ (ExprValue value) = value
@@ -21,17 +22,17 @@ evaluate_expr env (ExprOp l op r) =
   in
     case env # Value.lookup_operator op of
       Just { operation } -> case operation of
-        ValueLambda left_key left_closure expr ->
+        ValueCallable (ValueLambda left_key left_closure expr) ->
           case evaluate_expr (left_closure # Value.insert left_key left_value) expr of
-            ValueLambda right_key right_closure expr_ ->
+            ValueCallable (ValueLambda right_key right_closure expr_) ->
               evaluate_expr (right_closure # Value.insert right_key right_value) expr_
-            ValueForeignFn fn -> fn right_value
+            ValueCallable (ValueForeignFn fn) -> fn right_value
             _ -> ValueError (op <> " only takes one argument, but must take two")
-        ValueForeignFn fn ->
+        ValueCallable (ValueForeignFn fn) ->
           case fn left_value of
-            ValueLambda right_key right_closure expr ->
+            ValueCallable (ValueLambda right_key right_closure expr) ->
               evaluate_expr (right_closure # Value.insert right_key right_value) expr
-            ValueForeignFn fn_ -> fn_ right_value
+            ValueCallable (ValueForeignFn fn_) -> fn_ right_value
             _ -> ValueError (op <> " only takes one argument, but must take two")
         _ -> ValueError ("Cant find " <> op <> " in scope")
       _ -> ValueError ("Cant find " <> op <> " in scope")
@@ -41,8 +42,8 @@ evaluate_expr env (ExprApp f a) =
     argument = evaluate_expr env a
   in
     case evaluate_expr env f of
-      ValueLambda key closure expr -> evaluate_expr (closure # Value.insert key argument) expr
-      ValueForeignFn fn -> fn argument
+      ValueCallable (ValueLambda key closure expr) -> evaluate_expr (closure # Value.insert key argument) expr
+      ValueCallable (ValueForeignFn fn) -> fn argument
       _ -> ValueError (show f <> " is not callable")
 evaluate_expr env (ExprIdentifier key) = env # Value.lookup key
 evaluate_expr env (ExprArray values) = ValueArray (values <#> evaluate_expr env)
@@ -52,7 +53,7 @@ evaluate_expr env (ExprLet m expr) =
     new_env = Value.insert_all (m <#> evaluate_expr env) env
   in
     evaluate_expr new_env expr
-evaluate_expr env (ExprLambda p e) = ValueLambda p env e
+evaluate_expr env (ExprLambda p e) = ValueCallable (ValueLambda p env e)
 evaluate_expr env (ExprIfElse i t e) = case evaluate_expr env i of
   ValueBoolean true -> evaluate_expr env t
   ValueBoolean false -> evaluate_expr env e
@@ -130,22 +131,22 @@ names = Value.names
 default_env :: Env Expr
 default_env = Value.empty_env
   # Value.insert "add"
-      ( ValueForeignFn case _ of
-          ValueInt x -> ValueForeignFn case _ of
+      ( ValueCallable $ ValueForeignFn case _ of
+          ValueInt x -> ValueCallable $ ValueForeignFn case _ of
             ValueInt y -> ValueInt (x + y)
             _ -> ValueError "Expected Int"
           _ -> ValueError "Expected Int"
       )
   # Value.insert "mul"
-      ( ValueForeignFn case _ of
-          ValueInt x -> ValueForeignFn case _ of
+      ( ValueCallable $ ValueForeignFn case _ of
+          ValueInt x -> ValueCallable $ ValueForeignFn case _ of
             ValueInt y -> ValueInt (x * y)
             _ -> ValueError "Expected Int"
           _ -> ValueError "Expected Int"
       )
   # Value.insert "eq"
-      ( ValueForeignFn case _ of
-          ValueInt x -> ValueForeignFn case _ of
+      ( ValueCallable $ ValueForeignFn case _ of
+          ValueInt x -> ValueCallable $ ValueForeignFn case _ of
             ValueInt y -> ValueBoolean (x == y)
             _ -> ValueError "Expected Int"
           _ -> ValueError "Expected Int"

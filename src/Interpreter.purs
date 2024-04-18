@@ -6,7 +6,7 @@ import Data.Maybe (Maybe(..), isNothing)
 import Data.Tuple (Tuple(Tuple), snd)
 import Parser (parse_declaration, parse_expression)
 import PursPurs.Declaration (Declaration(..))
-import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, BinderVariable, BinderWildcard), Expr(..))
+import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, BinderVariable, BinderWildcard), Branches, Expr(..))
 import PursPurs.Value (Callable(..), Env, Value(..), Values)
 import Data.Array (any, catMaybes, findMap, foldr) as Array
 import Data.Map.Internal (empty, singleton, union) as Map
@@ -39,7 +39,11 @@ evaluate_expr env (ExprIfElse i t e) = case evaluate_expr env i of
   ValueBoolean true -> evaluate_expr env t
   ValueBoolean false -> evaluate_expr env e
   _ -> ValueError "expected boolean in if"
-evaluate_expr env (ExprCase expr branches) =
+evaluate_expr env (ExprCase expr branches) = evaluate_case_of expr branches env
+evaluate_expr _ _ = ValueError "?"
+
+evaluate_case_of :: Expr -> Branches -> Env Expr -> Value Expr
+evaluate_case_of expr branches env =
   let
     value = evaluate_expr env expr
     bad_value = case value of
@@ -53,7 +57,6 @@ evaluate_expr env (ExprCase expr branches) =
     else case branches # Array.findMap \(Tuple b expr_) -> match_binder value b <#> Tuple expr_ of
       Nothing -> ValueError "No matching branch in case of"
       Just (Tuple expr_ values) -> evaluate_expr (Value.insert_all values env) expr_
-evaluate_expr _ _ = ValueError "?"
 
 match_binder :: Value Expr -> Binder -> Maybe (Values Expr)
 match_binder value (BinderVariable name) = Just (Map.singleton name value)

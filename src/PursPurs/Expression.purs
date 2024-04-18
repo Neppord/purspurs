@@ -33,6 +33,9 @@ instance Eq Binder where
     name == name_ && binders == binders_
   eq _ _ = false
 
+type Branch = Tuple Binder Expr
+type Branches = Array Branch
+
 data Expr
   = ExprError
   | ExprIdentifier String
@@ -42,7 +45,7 @@ data Expr
   | ExprOp Expr String Expr
   | ExprLet (Map String Expr) Expr
   | ExprIfElse Expr Expr Expr
-  | ExprCase Expr (Array (Tuple Binder Expr))
+  | ExprCase Expr Branches
   | ExprConstructor String (Array Expr)
   | ExprLambda String Expr
 

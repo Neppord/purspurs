@@ -3,7 +3,11 @@ module Test.RPython.Main where
 import Prelude
 
 import Data.Array (intercalate)
-import Data.Tuple (snd)
+import Data.Array.NonEmpty.Internal (NonEmptyArray(NonEmptyArray))
+import Data.Maybe (Maybe, fromMaybe, maybe)
+import Data.String.Common (split)
+import Data.String.Pattern (Pattern(Pattern))
+import Data.Tuple (Tuple(Tuple), snd)
 import Effect (Effect)
 import Effect.Aff (launchAff_)
 import Test.Spec (describe, it)
@@ -12,9 +16,6 @@ import Test.Spec.Reporter.Spec (specReporter)
 import Test.Spec.Runner (runSpec)
 import PureScript.CST as CST
 import PureScript.CST.Types as CST
-import Data.Maybe (Maybe, fromMaybe, maybe)
-import Data.String.Common (split)
-import Data.String.Pattern (Pattern(Pattern))
 import Data.String.CodeUnits (singleton) as CodeUnits
 
 data Expr
@@ -140,6 +141,23 @@ translate_expression e = case e of
       # maybe [] elements_from_seperated
       <#> translate_expression
       # ListLiteral
+  CST.ExprOp left (NonEmptyArray [ Tuple (CST.QualifiedName { name: CST.Operator "+" }) right ]) ->
+    BinaryOp Add (translate_expression left) (translate_expression right)
+  CST.ExprOp left (NonEmptyArray [ Tuple (CST.QualifiedName { name: CST.Operator "*" }) right ]) ->
+    BinaryOp Multiply (translate_expression left) (translate_expression right)
+  CST.ExprOp left
+    ( NonEmptyArray
+        [ Tuple (CST.QualifiedName { name: CST.Operator "+" }) right
+        , Tuple (CST.QualifiedName { name: CST.Operator "*" }) right_
+        ]
+    ) ->
+    BinaryOp Add
+      (translate_expression left)
+      ( BinaryOp Multiply
+          (translate_expression right)
+          (translate_expression right_)
+      )
+
   _ -> StrLiteral "Error"
 
 compile_expression :: CST.Expr Void -> String
@@ -210,4 +228,5 @@ main = launchAff_ $ runSpec [ specReporter ] do
       compile_expression_from_string "[]" # shouldEqual "[]"
       compile_expression_from_string "[1]" # shouldEqual "[1]"
       compile_expression_from_string "[1, 2]" # shouldEqual "[1, 2]"
-
+      compile_expression_from_string "1 + 2" # shouldEqual "(1 + 2)"
+      compile_expression_from_string "1 + 2 * 3" # shouldEqual "(1 + (2 * 3))"

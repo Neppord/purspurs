@@ -4,7 +4,7 @@ import Prelude
 
 import Data.Array (intercalate)
 import Data.Array.NonEmpty.Internal (NonEmptyArray(NonEmptyArray))
-import Data.Maybe (Maybe, fromMaybe, maybe)
+import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.String.Common (split)
 import Data.String.Pattern (Pattern(Pattern))
 import Data.Tuple (Tuple(Tuple), snd)
@@ -14,6 +14,7 @@ import Test.Spec (describe, it)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.Reporter.Spec (specReporter)
 import Test.Spec.Runner (runSpec)
+import Data.Array (uncons) as Array
 import PureScript.CST as CST
 import PureScript.CST.Types as CST
 import Data.String.CodeUnits (singleton) as CodeUnits
@@ -141,24 +142,23 @@ translate_expression e = case e of
       # maybe [] elements_from_seperated
       <#> translate_expression
       # ListLiteral
-  CST.ExprOp left (NonEmptyArray [ Tuple (CST.QualifiedName { name: CST.Operator "+" }) right ]) ->
-    BinaryOp Add (translate_expression left) (translate_expression right)
-  CST.ExprOp left (NonEmptyArray [ Tuple (CST.QualifiedName { name: CST.Operator "*" }) right ]) ->
-    BinaryOp Multiply (translate_expression left) (translate_expression right)
-  CST.ExprOp left
-    ( NonEmptyArray
-        [ Tuple (CST.QualifiedName { name: CST.Operator "+" }) right
-        , Tuple (CST.QualifiedName { name: CST.Operator "*" }) right_
-        ]
-    ) ->
-    BinaryOp Add
-      (translate_expression left)
-      ( BinaryOp Multiply
-          (translate_expression right)
-          (translate_expression right_)
-      )
-
+  CST.ExprOp left tail -> compile_operator (translate_expression left) tail
   _ -> StrLiteral "Error"
+
+compile_operator
+  :: Expr
+  -> (NonEmptyArray (Tuple (CST.QualifiedName CST.Operator) (CST.Expr Void)))
+  -> Expr
+compile_operator left (NonEmptyArray [ right_ ]) = case right_ of
+  Tuple (CST.QualifiedName { name: CST.Operator "*" }) right ->
+    BinaryOp Multiply left (translate_expression right)
+  Tuple (CST.QualifiedName { name: CST.Operator _ {- "+" -} }) right ->
+    BinaryOp Add left (translate_expression right)
+compile_operator left (NonEmptyArray more_then_one) = case Array.uncons more_then_one of
+  Just { head: Tuple (CST.QualifiedName { name: CST.Operator op }) right, tail } -> case op of
+    "+" -> BinaryOp Add left (translate_expression (CST.ExprOp right (NonEmptyArray tail)))
+    _ -> compile_operator (BinaryOp Multiply left (translate_expression right)) (NonEmptyArray tail)
+  Nothing -> left
 
 compile_expression :: CST.Expr Void -> String
 compile_expression e = case e of
@@ -230,3 +230,4 @@ main = launchAff_ $ runSpec [ specReporter ] do
       compile_expression_from_string "[1, 2]" # shouldEqual "[1, 2]"
       compile_expression_from_string "1 + 2" # shouldEqual "(1 + 2)"
       compile_expression_from_string "1 + 2 * 3" # shouldEqual "(1 + (2 * 3))"
+      compile_expression_from_string "1 * 2 + 3" # shouldEqual "((1 * 2) + 3)"

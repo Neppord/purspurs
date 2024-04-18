@@ -39,7 +39,7 @@ evaluate_expr env (ExprIfElse i t e) = case evaluate_expr env i of
   ValueBoolean true -> evaluate_expr env t
   ValueBoolean false -> evaluate_expr env e
   _ -> ValueError "expected boolean in if"
-evaluate_expr env (ExprCase expr branches) = evaluate_case_of expr branches env
+evaluate_expr env (ExprCase expr branches) = env # evaluate_case_of expr branches
 evaluate_expr _ _ = ValueError "?"
 
 evaluate_case_of :: Expr -> Branches -> Env Expr -> Value Expr

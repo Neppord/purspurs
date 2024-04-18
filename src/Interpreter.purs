@@ -39,21 +39,19 @@ evaluate_expr env (ExprIfElse i t e) = case evaluate_expr env i of
   ValueBoolean true -> evaluate_expr env t
   ValueBoolean false -> evaluate_expr env e
   _ -> ValueError "expected boolean in if"
-evaluate_expr env (ExprCase expr branches) = env # evaluate_case_of expr branches
+evaluate_expr env (ExprCase expr branches) = env # evaluate_case_of (evaluate_expr env expr) branches
 evaluate_expr _ _ = ValueError "?"
 
-evaluate_case_of :: Expr -> Branches -> Env Expr -> Value Expr
-evaluate_case_of expr branches env =
+evaluate_case_of :: Value Expr -> Branches -> Env Expr -> Value Expr
+evaluate_case_of (ValueError msg) _ _ = ValueError msg
+evaluate_case_of value branches env =
   let
-    value = evaluate_expr env expr
-    bad_value = case value of
-      ValueError _ -> true
-      _ -> false
-    bad_branch = branches # Array.any \(Tuple binder expr_) ->
-      binder == BinderError || expr_ == ExprError
-    bad_case_of = bad_value || bad_branch
+    bad_branch = branches # Array.any case _ of
+        Tuple BinderError _ -> true
+        Tuple _ ExprError -> true
+        _ -> false
   in
-    if bad_case_of then ValueError "Bad case of"
+    if bad_branch then ValueError "Bad case of"
     else case branches # Array.findMap \(Tuple b expr_) -> match_binder value b <#> Tuple expr_ of
       Nothing -> ValueError "No matching branch in case of"
       Just (Tuple expr_ values) -> evaluate_expr (Value.insert_all values env) expr_

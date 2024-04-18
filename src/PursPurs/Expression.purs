@@ -79,6 +79,5 @@ instance Eq Expr where
   eq (ExprArray x) (ExprArray y) = x == y
   eq (ExprConstructor name array) (ExprConstructor name_ array_) = name == name_ && array == array_
   eq (ExprLambda parameter expression) (ExprLambda parameter_ expression_) =
-    parameter == parameter_
-      && expression == expression_
+    parameter == parameter_ && expression == expression_
   eq _ _ = false

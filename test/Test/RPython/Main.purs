@@ -15,6 +15,7 @@ import PureScript.CST.Types as CST
 import Data.Maybe (Maybe, fromMaybe, maybe)
 import Data.String.Common (split)
 import Data.String.Pattern (Pattern(Pattern))
+import Data.String.CodeUnits (singleton) as CodeUnits
 
 data Expr
   = IntLiteral String
@@ -62,12 +63,12 @@ data UnOp
 
 instance Show Expr where
   show = case _ of
-    IntLiteral n -> show n
+    IntLiteral n -> n
     FloatLiteral f -> show f
     StrLiteral s -> "\"" <> s <> "\""
     BoolLiteral b -> if b then "True" else "False"
     Var v -> v
-    Access v path -> [show v] <> path # intercalate "."
+    Access v path -> [ show v ] <> path # intercalate "."
     BinaryOp op left right -> "(" <> show left <> " " <> show op <> " " <> show right <> ")"
     UnaryOp op expr -> show op <> " " <> show expr
     IfExpr cond t f -> "(" <> show t <> " if " <> show cond <> " else " <> show f <> ")"
@@ -125,7 +126,7 @@ translate_expression e = case e of
   CST.ExprInt _ (CST.SmallInt i) -> IntLiteral (show i)
   CST.ExprBoolean _ b -> BoolLiteral b
   CST.ExprString _ string -> StrLiteral string
-  CST.ExprChar _ char -> StrLiteral (show char)
+  CST.ExprChar _ char -> StrLiteral (CodeUnits.singleton char)
   CST.ExprNumber _ n -> FloatLiteral n
   CST.ExprIdent identifier -> Var $ compile_identifier identifier
   CST.ExprConstructor constructor -> Var $ compile_constructor constructor
@@ -135,10 +136,10 @@ translate_expression e = case e of
       (path # elements_from_seperated <#> compile_name_label)
   CST.ExprArray array ->
     array
-        # unwrapped
-        # maybe [] elements_from_seperated
-        <#> translate_expression
-        # ListLiteral
+      # unwrapped
+      # maybe [] elements_from_seperated
+      <#> translate_expression
+      # ListLiteral
   _ -> StrLiteral "Error"
 
 compile_expression :: CST.Expr Void -> String
@@ -188,7 +189,9 @@ compile_name_label (CST.Name { name: CST.Label name }) = name
 
 compile_expression_from_string :: String -> String
 compile_expression_from_string str = case CST.parseExpr str of
-  CST.ParseSucceeded expr -> compile_expression expr
+  CST.ParseSucceeded expr -> expr
+    # translate_expression
+    # show
   _ -> ""
 
 main :: Effect Unit
@@ -200,7 +203,7 @@ main = launchAff_ $ runSpec [ specReporter ] do
       compile_expression_from_string "4.2" # shouldEqual "4.2"
       compile_expression_from_string "foo" # shouldEqual "foo"
       compile_expression_from_string "Foo" # shouldEqual "Foo"
-      compile_expression_from_string "'a'" # shouldEqual "'a'"
+      compile_expression_from_string "'a'" # shouldEqual "\"a\""
       compile_expression_from_string "\"a\"" # shouldEqual "\"a\""
       compile_expression_from_string "bar.foo" # shouldEqual "bar.foo"
       compile_expression_from_string "bar.foo.baz" # shouldEqual "bar.foo.baz"

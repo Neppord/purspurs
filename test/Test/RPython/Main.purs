@@ -156,8 +156,8 @@ compile_operator left (NonEmptyArray [ right_ ]) = case right_ of
     BinaryOp Add left (translate_expression right)
 compile_operator left (NonEmptyArray more_then_one) = case Array.uncons more_then_one of
   Just { head: Tuple (CST.QualifiedName { name: CST.Operator op }) right, tail } -> case op of
-    "+" -> BinaryOp Add left (translate_expression (CST.ExprOp right (NonEmptyArray tail)))
-    _ -> compile_operator (BinaryOp Multiply left (translate_expression right)) (NonEmptyArray tail)
+    "*" -> compile_operator (BinaryOp Multiply left (translate_expression right)) (NonEmptyArray tail)
+    _ -> BinaryOp Add left (translate_expression (CST.ExprOp right (NonEmptyArray tail)))
   Nothing -> left
 
 compile_expression :: CST.Expr Void -> String
@@ -231,3 +231,4 @@ main = launchAff_ $ runSpec [ specReporter ] do
       compile_expression_from_string "1 + 2" # shouldEqual "(1 + 2)"
       compile_expression_from_string "1 + 2 * 3" # shouldEqual "(1 + (2 * 3))"
       compile_expression_from_string "1 * 2 + 3" # shouldEqual "((1 * 2) + 3)"
+      compile_expression_from_string "\"Hello \" <> \"World\"" # shouldEqual "(\"Hello \" + \"World\")"

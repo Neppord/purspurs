@@ -45,16 +45,16 @@ evaluate_expr _ _ = ValueError "?"
 evaluate_case_of :: Value Expr -> Branches -> Env Expr -> Value Expr
 evaluate_case_of (ValueError msg) _ _ = ValueError msg
 evaluate_case_of value branches env =
-  let
-    bad_branch = branches # Array.any case _ of
-        Tuple BinderError _ -> true
-        Tuple _ ExprError -> true
-        _ -> false
-  in
-    if bad_branch then ValueError "Bad case of"
-    else case branches # Array.findMap \(Tuple b expr_) -> match_binder value b <#> Tuple expr_ of
-      Nothing -> ValueError "No matching branch in case of"
-      Just (Tuple expr_ values) -> evaluate_expr (Value.insert_all values env) expr_
+  if branches # contains_any_errors then ValueError "Bad case of"
+  else case branches # Array.findMap \(Tuple b expr_) -> match_binder value b <#> Tuple expr_ of
+    Nothing -> ValueError "No matching branch in case of"
+    Just (Tuple expr_ values) -> evaluate_expr (Value.insert_all values env) expr_
+
+contains_any_errors :: Branches -> Boolean
+contains_any_errors branches = branches # Array.any case _ of
+  Tuple BinderError _ -> true
+  Tuple _ ExprError -> true
+  _ -> false
 
 match_binder :: Value Expr -> Binder -> Maybe (Values Expr)
 match_binder value (BinderVariable name) = Just (Map.singleton name value)

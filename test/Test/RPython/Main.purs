@@ -228,6 +228,8 @@ main = launchAff_ $ runSpec [ specReporter ] do
       compile_expression_from_string "[]" # shouldEqual "[]"
       compile_expression_from_string "[1]" # shouldEqual "[1]"
       compile_expression_from_string "[1, 2]" # shouldEqual "[1, 2]"
+
+    it "compiles expressions" do
       compile_expression_from_string "1 + 2" # shouldEqual "(1 + 2)"
       compile_expression_from_string "1 + 2 * 3" # shouldEqual "(1 + (2 * 3))"
       compile_expression_from_string "1 * 2 + 3" # shouldEqual "((1 * 2) + 3)"

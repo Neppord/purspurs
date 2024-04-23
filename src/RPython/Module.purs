@@ -25,7 +25,7 @@ compile_module source = case CST.parseModule source of
         """
 
 
-def entry_point(*args):
+def entry_point(args):
     main()
     return 0
 

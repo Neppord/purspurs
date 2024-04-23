@@ -10,8 +10,6 @@ import Test.Spec (describe, it)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.Reporter.Spec (specReporter)
 import Test.Spec.Runner (runSpec)
-import PureScript.CST as CST
-import PureScript.CST.Types as CST
 
 main :: Effect Unit
 main = launchAff_ $ runSpec [ specReporter ] do
@@ -26,7 +24,7 @@ def main():
     print("hello world")
 
 
-def entry_point(*args):
+def entry_point(args):
     main()
     return 0
 

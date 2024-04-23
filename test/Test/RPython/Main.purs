@@ -212,9 +212,45 @@ compile_expression_from_string str = case CST.parseExpr str of
     # show
   _ -> ""
 
+compile_module :: String -> String
+compile_module source = case CST.parseModule source of
+  CST.ParseSucceeded _ ->
+    """from __future__ import print_function
+def main():
+    print("hello world")
+
+
+def entry_point(*args):
+    main()
+    return 0
+
+
+def target(*args):
+    return entry_point, None
+"""
+  _ -> ""
+
 main :: Effect Unit
 main = launchAff_ $ runSpec [ specReporter ] do
   describe "rpython compiler" do
+    it "compiles simple program" do
+      compile_module
+        """module Main where
+main = print "hello world"
+        """ # shouldEqual
+        """from __future__ import print_function
+def main():
+    print("hello world")
+
+
+def entry_point(*args):
+    main()
+    return 0
+
+
+def target(*args):
+    return entry_point, None
+"""
     it "compiles values" do
       compile_expression_from_string "1" # shouldEqual "1"
       compile_expression_from_string "true" # shouldEqual "True"

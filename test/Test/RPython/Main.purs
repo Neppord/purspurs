@@ -143,6 +143,7 @@ translate_expression e = case e of
       <#> translate_expression
       # ListLiteral
   CST.ExprOp left tail -> compile_operator (translate_expression left) tail
+  CST.ExprApp f (NonEmptyArray [CST.AppTerm a]) -> Call (translate_expression f) [translate_expression a]
   _ -> StrLiteral "Error"
 
 compile_operator
@@ -214,10 +215,13 @@ compile_expression_from_string str = case CST.parseExpr str of
 
 compile_module :: String -> String
 compile_module source = case CST.parseModule source of
-  CST.ParseSucceeded _ ->
+  CST.ParseSucceeded (CST.Module {body: CST.ModuleBody {decls}}) ->
     """from __future__ import print_function
-def main():
-    print("hello world")
+""" <> (decls <#> case _ of
+    CST.DeclValue {name: CST.Name {name: CST.Ident name }, guarded: CST.Unconditional _ (CST.Where {expr})} ->
+        "def " <> name <> "():\n    " <> (expr # translate_expression # show)
+    _ -> """# skipping declaration"""
+# intercalate "\n\n") <> """
 
 
 def entry_point(*args):

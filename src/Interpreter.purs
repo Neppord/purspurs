@@ -119,6 +119,13 @@ default_env = Value.empty_env
             _ -> ValueError "Expected Int"
           _ -> ValueError "Expected Int"
       )
+  # Value.insert "sub"
+      ( ValueCallable $ CallableForeignFn case _ of
+          ValueInt x -> ValueCallable $ CallableForeignFn case _ of
+            ValueInt y -> ValueInt (x - y)
+            _ -> ValueError "Expected Int"
+          _ -> ValueError "Expected Int"
+      )
   # Value.insert "mul"
       ( ValueCallable $ CallableForeignFn case _ of
           ValueInt x -> ValueCallable $ CallableForeignFn case _ of
@@ -134,5 +141,6 @@ default_env = Value.empty_env
           _ -> ValueError "Expected Int"
       )
   # evaluate "infixl 6 add as +"
+  # evaluate "infixl 6 sub as -"
   # evaluate "infixl 7 mul as *"
   # evaluate "infix 4 eq as =="

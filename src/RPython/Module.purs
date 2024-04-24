@@ -47,4 +47,4 @@ compile_value_declaration name binders expr =
       # intercalate ", "
     body = expr # translate_expression # show
   in
-    "def " <> name <> "(" <> parameters <> "):\n    " <> body
+    "def " <> name <> "(" <> parameters <> "):\n    return " <> body

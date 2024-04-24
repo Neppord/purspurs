@@ -13,7 +13,6 @@ import Data.Array (uncons) as Array
 import PureScript.CST as CST
 import PureScript.CST.Types as CST
 import Data.String.CodeUnits (singleton) as CodeUnits
-import PureScript.CST.Types (Wrapped(Wrapped))
 
 data Expr
   = IntLiteral String
@@ -141,7 +140,11 @@ translate_expression e = case e of
       <#> translate_expression
       # ListLiteral
   CST.ExprOp left tail -> compile_operator (translate_expression left) tail
-  CST.ExprParens (CST.Wrapped {value}) ->  translate_expression value
+  CST.ExprParens (CST.Wrapped { value }) -> translate_expression value
+  CST.ExprIf { cond, true: t, false: f } -> IfExpr
+    (translate_expression cond)
+    (translate_expression t)
+    (translate_expression f)
   CST.ExprApp f (NonEmptyArray [ CST.AppTerm a ]) -> Call (translate_expression f) [ translate_expression a ]
   _ -> StrLiteral "Error"
 
@@ -152,11 +155,17 @@ compile_operator
 compile_operator left (NonEmptyArray [ right_ ]) = case right_ of
   Tuple (CST.QualifiedName { name: CST.Operator "*" }) right ->
     BinaryOp Multiply left (translate_expression right)
+  Tuple (CST.QualifiedName { name: CST.Operator "-" }) right ->
+    BinaryOp Subtract left (translate_expression right)
+  Tuple (CST.QualifiedName { name: CST.Operator "==" }) right ->
+    BinaryOp Equals left (translate_expression right)
   Tuple (CST.QualifiedName { name: CST.Operator _ {- "+" -} }) right ->
     BinaryOp Add left (translate_expression right)
 compile_operator left (NonEmptyArray more_then_one) = case Array.uncons more_then_one of
   Just { head: Tuple (CST.QualifiedName { name: CST.Operator op }) right, tail } -> case op of
     "*" -> compile_operator (BinaryOp Multiply left (translate_expression right)) (NonEmptyArray tail)
+    "-" -> compile_operator (BinaryOp Subtract left (translate_expression right)) (NonEmptyArray tail)
+    "==" -> compile_operator (BinaryOp Equals left (translate_expression right)) (NonEmptyArray tail)
     _ -> BinaryOp Add left (translate_expression (CST.ExprOp right (NonEmptyArray tail)))
   Nothing -> left
 

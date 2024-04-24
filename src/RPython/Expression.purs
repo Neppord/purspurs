@@ -13,6 +13,7 @@ import Data.Array (uncons) as Array
 import PureScript.CST as CST
 import PureScript.CST.Types as CST
 import Data.String.CodeUnits (singleton) as CodeUnits
+import PureScript.CST.Types (Wrapped(Wrapped))
 
 data Expr
   = IntLiteral String
@@ -28,6 +29,7 @@ data Expr
   | Lambda (Array String) Expr
   | TupleLiteral (Array Expr)
   | ListLiteral (Array Expr)
+  | Parenthesis Expr
 
 data Stmt
   = ExprStmt Expr
@@ -73,6 +75,7 @@ instance Show Expr where
     Lambda args body -> "lambda " <> intercalate ", " args <> ": " <> show body
     TupleLiteral elems -> "(" <> intercalate ", " (show <$> elems) <> ")"
     ListLiteral elems -> "[" <> intercalate ", " (show <$> elems) <> "]"
+    Parenthesis expr -> "(" <> show expr <> ")"
 
 instance Show Stmt where
   show = case _ of
@@ -138,6 +141,7 @@ translate_expression e = case e of
       <#> translate_expression
       # ListLiteral
   CST.ExprOp left tail -> compile_operator (translate_expression left) tail
+  CST.ExprParens (CST.Wrapped {value}) ->  translate_expression value
   CST.ExprApp f (NonEmptyArray [ CST.AppTerm a ]) -> Call (translate_expression f) [ translate_expression a ]
   _ -> StrLiteral "Error"
 

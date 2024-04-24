@@ -1,4 +1,4 @@
-module Examples.Print where
+module Print where
 
 import Prelude
 import Effect (Effect)

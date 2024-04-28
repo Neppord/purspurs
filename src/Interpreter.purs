@@ -20,12 +20,7 @@ evaluate_call (CallableLambda key closure expr) arg =
 
 evaluate_expr :: Env Expr -> Expr -> Value Expr
 evaluate_expr _ (ExprValue value) = value
-evaluate_expr env (ExprOp l op r) = case env # Value.lookup_operator op of
-  Just { operation } -> case evaluate_call operation (evaluate_expr env l) of
-    ValueCallable c_ -> evaluate_call c_ (evaluate_expr env r)
-    _ -> ValueError (op <> " only takes one argument, but must take two")
-  _ -> ValueError ("Cant find " <> op <> " in scope")
-
+evaluate_expr env (ExprOp l tail) = evaluate_operators env l tail
 evaluate_expr env (ExprApp f a) = case evaluate_expr env f of
   ValueCallable c -> evaluate_call c (evaluate_expr env a)
   _ -> ValueError (show f <> " is not callable")
@@ -41,6 +36,15 @@ evaluate_expr env (ExprIfElse i t e) = case evaluate_expr env i of
   _ -> ValueError "expected boolean in if"
 evaluate_expr env (ExprCase expr branches) = env # evaluate_case_of (evaluate_expr env expr) branches
 evaluate_expr _ _ = ValueError "?"
+
+evaluate_operators :: Env Expr -> Expr -> Array (Tuple String Expr) -> Value Expr
+evaluate_operators env l [ Tuple op r ] =
+  case env # Value.lookup_operator op of
+    Just { operation } -> case evaluate_call operation (evaluate_expr env l) of
+      ValueCallable c_ -> evaluate_call c_ (evaluate_expr env r)
+      _ -> ValueError (op <> " only takes one argument, but must take two")
+    _ -> ValueError ("Cant find " <> op <> " in scope")
+evaluate_operators _ _ _ = ValueError "faild to parse operator"
 
 evaluate_case_of :: Value Expr -> Branches -> Env Expr -> Value Expr
 evaluate_case_of (ValueError msg) _ _ = ValueError msg

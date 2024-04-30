@@ -13,6 +13,7 @@ import Data.List (fromFoldable, singleton, (:)) as List
 import Data.List.Types (List(Nil)) as List
 import Data.Map.Internal (empty, singleton, union) as Map
 import PursPurs.Value (empty_scope, insert, insert_all, insert_operator, lookup, lookup_callable, names) as Value
+import PursPurs.Fixity (Fixity(Infixl))
 
 evaluate_call :: Callable Expr -> Value Expr -> Value Expr
 evaluate_call (CallableError msg) _ = ValueError msg
@@ -68,8 +69,9 @@ operator_call scope first rest =
     go ((Tuple Nothing _) List.: _) _ _ = ExprError
     go ((Tuple (Just op) expression) List.: q) List.Nil expressions =
       go q (List.singleton op) (expression List.: expressions)
-    go ((Tuple (Just op@{ precedence: new }) expr) List.: q) ops@({ precedence: current } List.: _) exprs =
-      if new < current then go q List.Nil (List.singleton (pop ops exprs))
+    go qs@((Tuple (Just op@{ precedence: new, fixity }) expr) List.: q) ops@({ precedence: current } List.: _) exprs =
+      if new < current then go qs List.Nil (List.singleton (pop ops exprs))
+      else if new == current && fixity == Infixl then go qs List.Nil (List.singleton (pop ops exprs))
       else go q (op List.: ops) (expr List.: exprs)
   in
     go queue List.Nil (List.singleton first)

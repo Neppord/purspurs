@@ -67,7 +67,10 @@ main = launchAff_ $ runSpec [ specReporter ] do
         B b -> b
       """
         ] # shouldEqual "true"
-    it "handles session with operator" do
+    it "handles 1 + 2" do
       run_program [ "1 + 2" ] # shouldEqual "3"
+    it "handles 1 + 2 + 3" do
       run_program [ "1 + 2 + 3" ] # shouldEqual "6"
+    it "handles 1 + 2 - 3" do
+      run_program [ "1 + 2 - 3" ] # shouldEqual "0"
 

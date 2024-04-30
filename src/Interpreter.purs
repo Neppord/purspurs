@@ -7,10 +7,10 @@ import Data.Tuple (Tuple(Tuple), snd)
 import Parser (parse_declaration, parse_expression)
 import PursPurs.Declaration (Declaration(..))
 import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, BinderVariable, BinderWildcard), Branches, Expr(..))
-import PursPurs.Value (Callable(..), Env, Value(..), Values)
+import PursPurs.Value (Callable(..), Scope, Value(..), Values)
 import Data.Array (any, catMaybes, findMap, foldr) as Array
 import Data.Map.Internal (empty, singleton, union) as Map
-import PursPurs.Value (empty_env, insert, insert_all, insert_operator, lookup, lookup_callable, lookup_operator, names) as Value
+import PursPurs.Value (empty_scope, insert, insert_all, insert_operator, lookup, lookup_callable, lookup_operator, names) as Value
 
 evaluate_call :: Callable Expr -> Value Expr -> Value Expr
 evaluate_call (CallableError msg) _ = ValueError msg
@@ -18,7 +18,7 @@ evaluate_call (CallableForeignFn fn) arg = fn arg
 evaluate_call (CallableLambda key closure expr) arg =
   evaluate_expr (closure # Value.insert key arg) expr
 
-evaluate_expr :: Env Expr -> Expr -> Value Expr
+evaluate_expr :: Scope Expr -> Expr -> Value Expr
 evaluate_expr _ (ExprValue value) = value
 evaluate_expr env (ExprOp l tail) = evaluate_operators env l tail
 evaluate_expr env (ExprApp f a) = case evaluate_expr env f of
@@ -37,7 +37,7 @@ evaluate_expr env (ExprIfElse i t e) = case evaluate_expr env i of
 evaluate_expr env (ExprCase expr branches) = env # evaluate_case_of (evaluate_expr env expr) branches
 evaluate_expr _ _ = ValueError "?"
 
-evaluate_operators :: Env Expr -> Expr -> Array (Tuple String Expr) -> Value Expr
+evaluate_operators :: Scope Expr -> Expr -> Array (Tuple String Expr) -> Value Expr
 evaluate_operators env l [ Tuple op r ] =
   case env # Value.lookup_operator op of
     Just { operation } -> case evaluate_call operation (evaluate_expr env l) of
@@ -46,7 +46,7 @@ evaluate_operators env l [ Tuple op r ] =
     _ -> ValueError ("Cant find " <> op <> " in scope")
 evaluate_operators _ _ _ = ValueError "faild to parse operator"
 
-evaluate_case_of :: Value Expr -> Branches -> Env Expr -> Value Expr
+evaluate_case_of :: Value Expr -> Branches -> Scope Expr -> Value Expr
 evaluate_case_of (ValueError msg) _ _ = ValueError msg
 evaluate_case_of value branches env =
   if branches # contains_any_errors then ValueError "Bad case of"
@@ -81,7 +81,7 @@ match_binder value (BinderConstructor name binders) = case value of
   _ -> Nothing
 match_binder _ (BinderError) = Just Map.empty
 
-evaluate :: String -> Env Expr -> Env Expr
+evaluate :: String -> Scope Expr -> Scope Expr
 evaluate s env = case parse_declaration s of
   DeclarationData _ constructors -> constructors
     # Array.foldr (\(Tuple key expr) -> Value.insert key (evaluate_expr env expr)) env
@@ -106,16 +106,16 @@ evaluate s env = case parse_declaration s of
 
   DeclarationError -> env # Value.insert "_" (evaluate_expr env (parse_expression s))
 
-print :: Env Expr -> String
+print :: Scope Expr -> String
 print env = env
   # Value.lookup "_"
   # show
 
-names :: Env Expr -> Array String
+names :: Scope Expr -> Array String
 names = Value.names
 
-default_env :: Env Expr
-default_env = Value.empty_env
+default_env :: Scope Expr
+default_env = Value.empty_scope
   # Value.insert "add"
       ( ValueCallable $ CallableForeignFn case _ of
           ValueInt x -> ValueCallable $ CallableForeignFn case _ of

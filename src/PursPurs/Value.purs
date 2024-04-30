@@ -12,42 +12,42 @@ import Data.Maybe (Maybe)
 
 type Values expr = Map String (Value expr)
 type Operators value = Map String (Operator value)
-type Env expr =
+type Scope expr =
   { values :: Values expr
   , operators :: Operators (Callable expr)
   }
 
-empty_env :: forall expr. Env expr
-empty_env = { values: Map.empty, operators: Map.empty }
+empty_scope :: forall expr. Scope expr
+empty_scope = { values: Map.empty, operators: Map.empty }
 
-insert_all :: forall expr. Values expr -> Env expr -> Env expr
+insert_all :: forall expr. Values expr -> Scope expr -> Scope expr
 insert_all values env = env { values = Map.union env.values values }
 
 cant_find :: forall expr. String -> Value expr
 cant_find key = ValueError $ "Could not find " <> key <> " in scope"
 
-lookup :: forall expr. String -> Env expr -> Value expr
+lookup :: forall expr. String -> Scope expr -> Value expr
 lookup key env = env.values
   # Map.lookup key
   # Maybe.fromMaybe (cant_find key)
 
-lookup_callable :: forall expr. String -> Env expr -> Callable expr
+lookup_callable :: forall expr. String -> Scope expr -> Callable expr
 lookup_callable key env = lookup key env # case _ of
   ValueCallable c -> c
   ValueError msg -> CallableError msg
   _ -> CallableError (key <> " is not callable")
 
-lookup_operator :: forall expr. String -> Env expr -> Maybe (Operator (Callable expr))
+lookup_operator :: forall expr. String -> Scope expr -> Maybe (Operator (Callable expr))
 lookup_operator key env = env.operators
   # Map.lookup key
 
-insert :: forall expr. String -> Value expr -> Env expr -> Env expr
+insert :: forall expr. String -> Value expr -> Scope expr -> Scope expr
 insert key value env = env { values = Map.insert key value env.values }
 
-insert_operator :: forall expr. String -> Operator (Callable expr) -> Env expr -> Env expr
+insert_operator :: forall expr. String -> Operator (Callable expr) -> Scope expr -> Scope expr
 insert_operator key operator env = env { operators = Map.insert key operator env.operators }
 
-names :: forall expr. Env expr -> Array String
+names :: forall expr. Scope expr -> Array String
 names env = Map.keys env.values # Array.fromFoldable
 
 data Value expr
@@ -63,7 +63,7 @@ data Value expr
   | ValueCallable (Callable expr)
 
 data Callable expr
-  = CallableLambda String (Env expr) expr
+  = CallableLambda String (Scope expr) expr
   | CallableForeignFn (Value expr -> Value expr)
   | CallableError String
 

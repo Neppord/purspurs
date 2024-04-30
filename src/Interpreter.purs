@@ -7,10 +7,12 @@ import Data.Tuple (Tuple(Tuple), snd)
 import Parser (parse_declaration, parse_expression)
 import PursPurs.Declaration (Declaration(..))
 import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, BinderVariable, BinderWildcard), Branches, Expr(..))
-import PursPurs.Value (Callable(..), Scope, Value(..), Values)
+import PursPurs.Value (Callable(..), Scope, Value(..), Values, lookup_operator)
 import Data.Array (any, catMaybes, findMap, foldr) as Array
+import Data.List (fromFoldable, singleton, (:)) as List
+import Data.List.Types (List(Nil)) as List
 import Data.Map.Internal (empty, singleton, union) as Map
-import PursPurs.Value (empty_scope, insert, insert_all, insert_operator, lookup, lookup_callable, lookup_operator, names) as Value
+import PursPurs.Value (empty_scope, insert, insert_all, insert_operator, lookup, lookup_callable, names) as Value
 
 evaluate_call :: Callable Expr -> Value Expr -> Value Expr
 evaluate_call (CallableError msg) _ = ValueError msg
@@ -38,13 +40,39 @@ evaluate_expr env (ExprCase expr branches) = env # evaluate_case_of (evaluate_ex
 evaluate_expr _ _ = ValueError "?"
 
 evaluate_operators :: Scope Expr -> Expr -> Array (Tuple String Expr) -> Value Expr
-evaluate_operators env l [ Tuple op r ] =
-  case env # Value.lookup_operator op of
-    Just { operation } -> case evaluate_call operation (evaluate_expr env l) of
-      ValueCallable c_ -> evaluate_call c_ (evaluate_expr env r)
-      _ -> ValueError (op <> " only takes one argument, but must take two")
-    _ -> ValueError ("Cant find " <> op <> " in scope")
-evaluate_operators _ _ _ = ValueError "faild to parse operator"
+evaluate_operators env l rest =
+  operator_call env l rest # evaluate_expr env
+
+operator_call :: Scope Expr -> Expr -> Array (Tuple String Expr) -> Expr
+operator_call scope first rest =
+  let
+    queue = rest
+      <#> (\(Tuple str expr) -> Tuple (lookup_operator str scope) expr)
+      # List.fromFoldable
+
+    -- Error condition, none of thes should be posible, but we dont know yet.
+    pop List.Nil List.Nil = ExprError
+    pop (_ List.: _) List.Nil = ExprError
+    pop (_ List.: _) (_ List.: List.Nil) = ExprError
+    pop List.Nil (_ List.: (_ List.: _)) = ExprError
+    -- Done
+    pop List.Nil (expr List.: List.Nil) = expr
+    -- pop the stack
+    pop ({ operation } List.: ops) (a List.: (b List.: expressions)) =
+      let
+        top = ExprApp (ExprApp (ExprValue (ValueCallable operation)) a) b
+      in
+        pop ops (top List.: expressions)
+
+    go List.Nil ops expressions = pop ops expressions
+    go ((Tuple Nothing _) List.: _) _ _ = ExprError
+    go ((Tuple (Just op) expression) List.: q) List.Nil expressions =
+      go q (List.singleton op) (expression List.: expressions)
+    go ((Tuple (Just op@{ precedence: new }) expr) List.: q) ops@({ precedence: current } List.: _) exprs =
+      if new < current then go q List.Nil (List.singleton (pop ops exprs))
+      else go q (op List.: ops) (expr List.: exprs)
+  in
+    go queue List.Nil (List.singleton first)
 
 evaluate_case_of :: Value Expr -> Branches -> Scope Expr -> Value Expr
 evaluate_case_of (ValueError msg) _ _ = ValueError msg

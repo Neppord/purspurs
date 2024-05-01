@@ -144,34 +144,27 @@ print env = env
 names :: Scope Expr -> Array String
 names = Value.names
 
+fn2 :: (Value Expr -> Value Expr -> Value Expr) -> Value Expr
+fn2 f = ValueCallable $ CallableForeignFn \a -> ValueCallable $ CallableForeignFn \b -> f a b
+
 default_env :: Scope Expr
 default_env = Value.empty_scope
   # Value.insert "add"
-      ( ValueCallable $ CallableForeignFn case _ of
-          ValueInt x -> ValueCallable $ CallableForeignFn case _ of
-            ValueInt y -> ValueInt (x + y)
-            _ -> ValueError "Expected Int"
-          _ -> ValueError "Expected Int"
+      ( fn2 case _, _ of
+          ValueInt x, ValueInt y -> ValueInt (x + y)
+          _, _ -> ValueError "Expected Int"
       )
   # Value.insert "sub"
-      ( ValueCallable $ CallableForeignFn case _ of
-          ValueInt x -> ValueCallable $ CallableForeignFn case _ of
-            ValueInt y -> ValueInt (x - y)
-            _ -> ValueError "Expected Int"
-          _ -> ValueError "Expected Int"
+      ( fn2 case _, _ of
+          ValueInt x, ValueInt y -> ValueInt (x - y)
+          _, _ -> ValueError "Expected Int"
       )
   # Value.insert "mul"
-      ( ValueCallable $ CallableForeignFn case _ of
-          ValueInt x -> ValueCallable $ CallableForeignFn case _ of
-            ValueInt y -> ValueInt (x * y)
-            _ -> ValueError "Expected Int"
-          _ -> ValueError "Expected Int"
+      ( fn2 case _, _ of
+          ValueInt x, ValueInt y -> ValueInt (x * y)
+          _, _ -> ValueError "Expected Int"
       )
-  # Value.insert "eq"
-      ( ValueCallable $ CallableForeignFn $
-          \x -> ValueCallable $ CallableForeignFn $
-            \y -> ValueBoolean (x == y)
-      )
+  # Value.insert "eq" (fn2 \x y -> ValueBoolean (x == y))
   # evaluate "infixl 6 add as +"
   # evaluate "infixl 6 sub as -"
   # evaluate "infixl 7 mul as *"

@@ -168,11 +168,9 @@ default_env = Value.empty_scope
           _ -> ValueError "Expected Int"
       )
   # Value.insert "eq"
-      ( ValueCallable $ CallableForeignFn case _ of
-          ValueInt x -> ValueCallable $ CallableForeignFn case _ of
-            ValueInt y -> ValueBoolean (x == y)
-            _ -> ValueError "Expected Int"
-          _ -> ValueError "Expected Int"
+      ( ValueCallable $ CallableForeignFn $
+          \x -> ValueCallable $ CallableForeignFn $
+            \y -> ValueBoolean (x == y)
       )
   # evaluate "infixl 6 add as +"
   # evaluate "infixl 6 sub as -"

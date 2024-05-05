@@ -2,9 +2,12 @@ module Test.Main where
 
 import Prelude
 
+import Data.Maybe (maybe)
 import Effect (Effect)
 import Effect.Aff (launchAff_)
-import Interpreter (default_env, evaluate, print)
+import Interpreter (default_env, evaluate, evaluate_module, print)
+import Parser (parse_module)
+import PursPurs.Value (lookup_value)
 import Test.Spec (describe, it)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.Reporter.Spec (specReporter)
@@ -18,12 +21,22 @@ run_program :: Array String -> String
 run_program program = Array.foldl (\env decl -> evaluate decl env) default_env program
   # print
 
+run_module :: String -> String
+run_module program = program
+  # parse_module
+  # evaluate_module
+  <#> (\scope -> lookup_value "main" scope)
+  # maybe "error" show
+
 main :: Effect Unit
 main = launchAff_ $ runSpec [ specReporter ] do
   Parser.Declaration.spec
   Parser.Expression.spec
   Interpreter.Expression.spec
 
+  describe "evaluate module" do
+    it "evaluates main" do
+      run_module "module Main where\nmain = 1 " # shouldEqual "1"
   describe "evaluate program" do
     it "handles literal" do
       run_program [ "1" ] # shouldEqual "1"

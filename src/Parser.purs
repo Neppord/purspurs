@@ -8,20 +8,31 @@ import Data.Int (fromString)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Tuple (Tuple(Tuple), snd)
 import Data.Tuple.Nested ((/\))
-import PureScript.CST (RecoveredParserResult(ParseSucceeded), parseDecl, parseExpr)
+import PureScript.CST (RecoveredParserResult(ParseSucceeded), parseDecl, parseExpr, parseModule)
 import PureScript.CST.Types (IntValue(SmallInt))
 import PursPurs.Declaration (Declaration(DeclarationData, DeclarationError, DeclarationFixity, DeclarationValue))
 import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, BinderVariable, BinderWildcard), Expr(..))
 import PursPurs.Fixity (Fixity(..))
+import PursPurs.Module (Module(Module, ModuleError))
 import PursPurs.Value (Value(..))
 import Data.Array (foldl, foldr, mapWithIndex) as Array
-import PureScript.CST.Types (AppSpine(..), Binder(..), DataCtor(..), Declaration(..), Expr(..), Fixity(Infix, Infixl, Infixr), FixityOp(FixityValue), Guarded(..), Ident(..), IntValue(..), LetBinding(LetBindingName), Name(..), Operator(Operator), Proper(..), QualifiedName(..), Separated(..), Where(..), Wrapped(..)) as CST
+import PureScript.CST.Types (AppSpine(..), Binder(..), DataCtor(..), Declaration(..), Expr(..), Fixity(Infix, Infixl, Infixr), FixityOp(FixityValue), Guarded(..), Ident(..), IntValue(..), LetBinding(LetBindingName), Module(Module), ModuleBody(ModuleBody), Name(..), Operator(Operator), Proper(..), QualifiedName(..), Separated(..), Where(..), Wrapped(..)) as CST
 import Data.Map.Internal (fromFoldable) as Map
+
+
+parse_module :: String -> Module
+parse_module expr = case parseModule expr of
+  ParseSucceeded e -> module_from_CST e
+  _ -> ModuleError
+
+module_from_CST :: CST.Module Void -> Module
+module_from_CST (CST.Module {body: CST.ModuleBody {decls} }) = Module (decls <#> declaration_from_CST)
 
 parse_expression :: String -> Expr
 parse_expression expr = case parseExpr expr of
   ParseSucceeded e -> expression_from_CST e
   _ -> ExprError
+
 
 expression_from_CST :: CST.Expr Void -> Expr
 expression_from_CST e = case e of
@@ -99,10 +110,11 @@ binder_from_CST _ = BinderError
 
 parse_declaration :: String -> Declaration
 parse_declaration declaration = case parseDecl declaration of
-  ParseSucceeded decl -> fromCST decl
+  ParseSucceeded decl -> declaration_from_CST decl
   _ -> DeclarationError
-  where
-  fromCST = case _ of
+
+declaration_from_CST :: CST.Declaration Void -> Declaration
+declaration_from_CST = case _ of
     CST.DeclFixity
       { prec: Tuple _ precedence
       , operator: CST.FixityValue

@@ -26,13 +26,13 @@ insert_all values env = env { values = Map.union env.values values }
 cant_find :: forall expr. String -> Value expr
 cant_find key = ValueError $ "Could not find " <> key <> " in scope"
 
-lookup :: forall expr. String -> Scope expr -> Value expr
-lookup key env = env.values
+lookup_value :: forall expr. String -> Scope expr -> Value expr
+lookup_value key env = env.values
   # Map.lookup key
   # Maybe.fromMaybe (cant_find key)
 
 lookup_callable :: forall expr. String -> Scope expr -> Callable expr
-lookup_callable key env = lookup key env # case _ of
+lookup_callable key env = lookup_value key env # case _ of
   ValueCallable c -> c
   ValueError msg -> CallableError msg
   _ -> CallableError (key <> " is not callable")

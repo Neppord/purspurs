@@ -7,13 +7,24 @@ import Data.Tuple (Tuple(Tuple), snd)
 import Parser (parse_declaration, parse_expression)
 import PursPurs.Declaration (Declaration(..))
 import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, BinderVariable, BinderWildcard), Branches, Expr(..))
-import PursPurs.Value (Callable(..), Scope, Value(..), Values, lookup_operator)
+import PursPurs.Fixity (Fixity(Infixl))
+import PursPurs.Module (Module(Module, ModuleError))
+import PursPurs.Value (Callable(..), Scope, Value(..), Values, empty_scope, lookup_operator)
 import Data.Array (any, catMaybes, findMap, foldr) as Array
 import Data.List (fromFoldable, singleton, (:)) as List
 import Data.List.Types (List(Nil)) as List
 import Data.Map.Internal (empty, singleton, union) as Map
-import PursPurs.Value (empty_scope, insert, insert_all, insert_operator, lookup, lookup_callable, names) as Value
-import PursPurs.Fixity (Fixity(Infixl))
+import PursPurs.Value (empty_scope, insert, insert_all, insert_operator, lookup_value, lookup_callable, names) as Value
+import Data.Array (foldr)
+
+evaluate_module :: Module -> Maybe (Scope Expr)
+evaluate_module ModuleError = Nothing
+evaluate_module (Module declarations) = foldr
+ (\declaration scope -> do
+    scope' <- scope
+    evaluate_declaration declaration scope')
+ (Just empty_scope)
+ declarations
 
 evaluate_call :: Callable Expr -> Value Expr -> Value Expr
 evaluate_call (CallableError msg) _ = ValueError msg
@@ -27,7 +38,7 @@ evaluate_expr env (ExprOp l tail) = evaluate_operators env l tail
 evaluate_expr env (ExprApp f a) = case evaluate_expr env f of
   ValueCallable c -> evaluate_call c (evaluate_expr env a)
   _ -> ValueError (show f <> " is not callable")
-evaluate_expr env (ExprIdentifier key) = env # Value.lookup key
+evaluate_expr env (ExprIdentifier key) = env # Value.lookup_value key
 evaluate_expr env (ExprArray values) = ValueArray (values <#> evaluate_expr env)
 evaluate_expr env (ExprConstructor name values) = ValueConstructor name (values <#> evaluate_expr env)
 evaluate_expr env (ExprLet m expr) =
@@ -112,10 +123,16 @@ match_binder value (BinderConstructor name binders) = case value of
 match_binder _ (BinderError) = Just Map.empty
 
 evaluate :: String -> Scope Expr -> Scope Expr
-evaluate s env = case parse_declaration s of
+evaluate s env = case evaluate_declaration (parse_declaration s) env of
+    Nothing -> env # Value.insert "_" (evaluate_expr env (parse_expression s))
+    Just scope -> scope
+
+evaluate_declaration:: Declaration -> Scope Expr -> Maybe (Scope Expr)
+evaluate_declaration declaration env = case declaration of
   DeclarationData _ constructors -> constructors
     # Array.foldr (\(Tuple key expr) -> Value.insert key (evaluate_expr env expr)) env
     # Value.insert "_" (ValueArray (constructors <#> snd <#> evaluate_expr env))
+    # Just
   DeclarationValue name expr ->
     let
       value = evaluate_expr env expr
@@ -123,6 +140,7 @@ evaluate s env = case parse_declaration s of
       env
         # Value.insert name value
         # Value.insert "_" value
+        # Just
   DeclarationFixity fixity precedence function operator_name ->
     let
       operation = env # Value.lookup_callable function
@@ -132,13 +150,15 @@ evaluate s env = case parse_declaration s of
         , fixity
         }
     in
-      env # Value.insert_operator operator_name operator
+      env
+        # Value.insert_operator operator_name operator
+        # Just
 
-  DeclarationError -> env # Value.insert "_" (evaluate_expr env (parse_expression s))
+  DeclarationError -> Nothing
 
 print :: Scope Expr -> String
 print env = env
-  # Value.lookup "_"
+  # Value.lookup_value "_"
   # show
 
 names :: Scope Expr -> Array String

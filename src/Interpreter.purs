@@ -17,9 +17,10 @@ import Data.Map.Internal (empty, singleton, union) as Map
 import PursPurs.Value (empty_scope, insert, insert_all, insert_operator, lookup_value, lookup_callable, names) as Value
 import Data.Array (foldr)
 
+
 evaluate_module :: Module -> Maybe (Scope Expr)
 evaluate_module ModuleError = Nothing
-evaluate_module (Module declarations) = foldr
+evaluate_module (Module _ declarations) = foldr
  (\declaration scope -> do
     scope' <- scope
     evaluate_declaration declaration scope')
@@ -126,6 +127,7 @@ evaluate :: String -> Scope Expr -> Scope Expr
 evaluate s env = case evaluate_declaration (parse_declaration s) env of
     Nothing -> env # Value.insert "_" (evaluate_expr env (parse_expression s))
     Just scope -> scope
+
 
 evaluate_declaration:: Declaration -> Scope Expr -> Maybe (Scope Expr)
 evaluate_declaration declaration env = case declaration of

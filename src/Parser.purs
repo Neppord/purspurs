@@ -15,10 +15,10 @@ import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, 
 import PursPurs.Fixity (Fixity(..))
 import PursPurs.Module (Module(Module, ModuleError))
 import PursPurs.Value (Value(..))
-import Data.Array (foldl, foldr, mapWithIndex) as Array
-import PureScript.CST.Types (AppSpine(..), Binder(..), DataCtor(..), Declaration(..), Expr(..), Fixity(Infix, Infixl, Infixr), FixityOp(FixityValue), Guarded(..), Ident(..), IntValue(..), LetBinding(LetBindingName), Module(Module), ModuleBody(ModuleBody), Name(..), Operator(Operator), Proper(..), QualifiedName(..), Separated(..), Where(..), Wrapped(..)) as CST
+import Data.Array (foldl, foldr, mapWithIndex, (:)) as Array
+import PureScript.CST.Types (AppSpine(..), Binder(..), DataCtor(..), DataMembers(..), Declaration(..), Expr(..), Fixity(Infix, Infixl, Infixr), FixityOp(FixityValue), Guarded(..), Ident(..), Import(..), ImportDecl(ImportDecl), IntValue(..), LetBinding(LetBindingName), Module(Module), ModuleBody(ModuleBody), ModuleHeader(ModuleHeader), ModuleName(ModuleName), Name(..), Operator(Operator), Proper(..), QualifiedName(..), Separated(..), Where(..), Wrapped(..)) as CST
+import PursPurs.Import (Import(Error, Import, ImportItems), Item(..)) as Import
 import Data.Map.Internal (fromFoldable) as Map
-
 
 parse_module :: String -> Module
 parse_module expr = case parseModule expr of
@@ -26,13 +26,59 @@ parse_module expr = case parseModule expr of
   _ -> ModuleError
 
 module_from_CST :: CST.Module Void -> Module
-module_from_CST (CST.Module {body: CST.ModuleBody {decls} }) = Module (decls <#> declaration_from_CST)
+module_from_CST
+  ( CST.Module
+      { header: CST.ModuleHeader { imports }
+      , body: CST.ModuleBody { decls }
+      }
+  ) = Module
+  (imports <#> import_from_CST)
+  (decls <#> declaration_from_CST)
+
+from_seperated :: forall a. CST.Separated a -> Array a
+from_seperated (CST.Separated { head, tail }) = head Array.: (tail <#> snd)
+
+import_from_CST :: CST.ImportDecl Void -> Import.Import
+import_from_CST
+  ( CST.ImportDecl
+      { module: CST.Name { name: CST.ModuleName name }
+      , names: Nothing
+      , qualified: Nothing
+      }
+  ) = Import.Import name
+import_from_CST
+  ( CST.ImportDecl
+      { module: CST.Name { name: CST.ModuleName name }
+      , names: Just (Tuple Nothing (CST.Wrapped { value: names }))
+      , qualified: Nothing
+      }
+  ) = Import.ImportItems name (names # from_seperated <#> import_item_from_CST)
+import_from_CST (CST.ImportDecl {}) = Import.Error
+
+import_item_from_CST :: CST.Import Void -> Import.Item
+import_item_from_CST (CST.ImportValue (CST.Name { name: CST.Ident name })) = Import.Value name
+import_item_from_CST (CST.ImportOp (CST.Name { name: CST.Operator name })) = Import.Op name
+import_item_from_CST (CST.ImportClass _ (CST.Name { name: CST.Proper name })) = Import.Class name
+import_item_from_CST (CST.ImportTypeOp _ (CST.Name { name: CST.Operator name })) = Import.TypeOp name
+import_item_from_CST (CST.ImportType (CST.Name { name: CST.Proper name }) Nothing) = Import.Type name
+import_item_from_CST (CST.ImportType (CST.Name { name: CST.Proper name }) (Just (CST.DataAll _))) =
+  Import.TypeWithAllMembers name
+import_item_from_CST
+  ( CST.ImportType
+      (CST.Name { name: CST.Proper name })
+      (Just (CST.DataEnumerated (CST.Wrapped { value: Nothing })))
+  ) = Import.TypeWithMembers name []
+import_item_from_CST
+  ( CST.ImportType
+      (CST.Name { name: CST.Proper name })
+      (Just (CST.DataEnumerated (CST.Wrapped { value: Just seperated })))
+  ) = Import.TypeWithMembers name (seperated # from_seperated <#> \(CST.Name { name: CST.Proper member }) -> member)
+import_item_from_CST (CST.ImportError _) = Import.Value "$$ERROR$$"
 
 parse_expression :: String -> Expr
 parse_expression expr = case parseExpr expr of
   ParseSucceeded e -> expression_from_CST e
   _ -> ExprError
-
 
 expression_from_CST :: CST.Expr Void -> Expr
 expression_from_CST e = case e of
@@ -115,53 +161,53 @@ parse_declaration declaration = case parseDecl declaration of
 
 declaration_from_CST :: CST.Declaration Void -> Declaration
 declaration_from_CST = case _ of
-    CST.DeclFixity
-      { prec: Tuple _ precedence
-      , operator: CST.FixityValue
-          (CST.QualifiedName { name: Left (CST.Ident name) })
-          _
-          (CST.Name { name: CST.Operator operator })
-      , keyword: Tuple _ fixity
-      } -> DeclarationFixity
-      ( case fixity of
-          CST.Infix -> Infix
-          CST.Infixl -> Infixl
-          CST.Infixr -> Infixr
-      )
-      precedence
-      name
-      operator
-    CST.DeclData { name: CST.Name { name: CST.Proper name } } a -> DeclarationData name case a of
-      Nothing -> []
-      Just (Tuple _ (CST.Separated { head, tail })) ->
-        let
-          all = [ head ] <> (tail <#> snd)
-        in
-          all <#>
-            ( \(CST.DataCtor { name: CST.Name { name: CST.Proper c }, fields }) -> case fields of
-                [] -> c /\ ExprConstructor c []
-                f ->
-                  let
-                    parameters = f # Array.mapWithIndex \i _ -> "$" <> show i
-                    constructor = ExprConstructor c (parameters <#> ExprIdentifier)
-                  in
-                    c /\ (Array.foldr ExprLambda constructor parameters :: Expr)
-
-            )
-
-    CST.DeclValue
-      { name: CST.Name { name: CST.Ident name }
-      , binders
-      , guarded: CST.Unconditional _ (CST.Where { expr })
-      } ->
+  CST.DeclFixity
+    { prec: Tuple _ precedence
+    , operator: CST.FixityValue
+        (CST.QualifiedName { name: Left (CST.Ident name) })
+        _
+        (CST.Name { name: CST.Operator operator })
+    , keyword: Tuple _ fixity
+    } -> DeclarationFixity
+    ( case fixity of
+        CST.Infix -> Infix
+        CST.Infixl -> Infixl
+        CST.Infixr -> Infixr
+    )
+    precedence
+    name
+    operator
+  CST.DeclData { name: CST.Name { name: CST.Proper name } } a -> DeclarationData name case a of
+    Nothing -> []
+    Just (Tuple _ (CST.Separated { head, tail })) ->
       let
-        base_expression = expression_from_CST expr
-        expression = binders # Array.foldr
-          case _ of
-            CST.BinderVar (CST.Name { name: CST.Ident param }) ->
-              \body -> ExprLambda param body
-            _ -> \_ -> ExprError
-          base_expression
+        all = [ head ] <> (tail <#> snd)
       in
-        DeclarationValue name expression
-    _ -> DeclarationError
+        all <#>
+          ( \(CST.DataCtor { name: CST.Name { name: CST.Proper c }, fields }) -> case fields of
+              [] -> c /\ ExprConstructor c []
+              f ->
+                let
+                  parameters = f # Array.mapWithIndex \i _ -> "$" <> show i
+                  constructor = ExprConstructor c (parameters <#> ExprIdentifier)
+                in
+                  c /\ (Array.foldr ExprLambda constructor parameters :: Expr)
+
+          )
+
+  CST.DeclValue
+    { name: CST.Name { name: CST.Ident name }
+    , binders
+    , guarded: CST.Unconditional _ (CST.Where { expr })
+    } ->
+    let
+      base_expression = expression_from_CST expr
+      expression = binders # Array.foldr
+        case _ of
+          CST.BinderVar (CST.Name { name: CST.Ident param }) ->
+            \body -> ExprLambda param body
+          _ -> \_ -> ExprError
+        base_expression
+    in
+      DeclarationValue name expression
+  _ -> DeclarationError

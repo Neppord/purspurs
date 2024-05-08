@@ -8,7 +8,7 @@ import Data.Int (fromString)
 import Data.Maybe (Maybe(..), maybe)
 import Data.Tuple (Tuple(Tuple), snd)
 import Data.Tuple.Nested ((/\))
-import PureScript.CST (RecoveredParserResult(ParseSucceeded), parseDecl, parseExpr, parseModule)
+import PureScript.CST (RecoveredParserResult(ParseSucceeded), parseDecl, parseExpr, parseImportDecl, parseModule)
 import PureScript.CST.Types (IntValue(SmallInt))
 import PursPurs.Declaration (Declaration(DeclarationData, DeclarationError, DeclarationFixity, DeclarationValue))
 import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, BinderVariable, BinderWildcard), Expr(..))
@@ -37,6 +37,11 @@ module_from_CST
 
 from_seperated :: forall a. CST.Separated a -> Array a
 from_seperated (CST.Separated { head, tail }) = head Array.: (tail <#> snd)
+
+parse_import :: String -> Maybe Import.Import
+parse_import s = case parseImportDecl s of
+  ParseSucceeded e -> Just $ import_from_CST e
+  _ -> Nothing
 
 import_from_CST :: CST.ImportDecl Void -> Import.Import
 import_from_CST

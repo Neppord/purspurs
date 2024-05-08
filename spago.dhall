@@ -22,6 +22,7 @@ to generate this file without the comments in this block.
   , "language-cst-parser"
   , "lists"
   , "maybe"
+  , "milkis"
   , "node-buffer"
   , "node-fs"
   , "node-process"
@@ -30,6 +31,7 @@ to generate this file without the comments in this block.
   , "spec"
   , "strings"
   , "tuples"
+  , "yoga-json"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs", "test/**/*.purs" ]

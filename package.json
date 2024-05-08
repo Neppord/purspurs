@@ -7,5 +7,8 @@
     "purescript": "^0.15.15",
     "purs-tidy": "^0.11.0",
     "spago": "^0.21.0"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
   }
 }

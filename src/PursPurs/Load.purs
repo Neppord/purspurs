@@ -86,4 +86,8 @@ main = launchAff_ do
     Nothing -> log ("could not find package for module_name: " <> module_name)
     Just package_ -> do
       url_ <- find_github_url nodeFetch (index_name package_)
-      logShow url_
+      case url_ of
+        Just u -> do
+            text_ <- text =<< fetch nodeFetch (URL (u <> module_name <> ".purs")) defaultFetchOptions
+            log text_
+        Nothing -> log "Something whent wrong"

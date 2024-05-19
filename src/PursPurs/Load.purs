@@ -5,9 +5,10 @@ import Prelude
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.String.Pattern (Pattern(Pattern))
+import Data.Traversable (sequence)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
-import Effect.Class.Console (log, logShow)
+import Effect.Class.Console (log)
 import Milkis (Response, URL(URL), defaultFetchOptions, fetch, getMethod, json, makeHeaders, text)
 import Milkis.Impl (FetchImpl)
 import Milkis.Impl.Node (nodeFetch)
@@ -32,12 +33,14 @@ find_package f name = do
     Right results -> results
       # Array.find (\{ info: { module: module_ } } -> module_ == Just name)
       <#> _.package
+      <#> index_name
 
 find_github_url :: FetchImpl -> String -> Aff (Maybe String)
 find_github_url f name = do
   let
     prefix1 = Data.String.take 2 name
     prefix2 = Data.String.take 2 (Data.String.drop 2 name)
+
     url :: String
     url = "https://raw.githubusercontent.com/purescript/registry-index/main/"
       <> prefix1
@@ -47,7 +50,6 @@ find_github_url f name = do
       <> name
   (response :: Response) <- fetch f (URL url) defaultFetchOptions
   text_ <- text response
-
 
   let
     lines = Data.String.split (Pattern "\n") (Data.String.dropRight 1 text_)
@@ -77,6 +79,18 @@ index_name name =
   if Data.String.take 11 name == "purescript-" then Data.String.drop 11 name
   else name
 
+load_source :: String -> Aff (Maybe String)
+load_source module_name = do
+  package <- find_package nodeFetch module_name
+  url <- join <$> (sequence $ find_github_url nodeFetch <$> package)
+  let full_url = url <#> \u -> u <> module_name <> ".purs"
+  sequence (find_source <$> full_url)
+
+find_source :: String -> Aff String
+find_source url = do
+  result <- fetch nodeFetch (URL url) defaultFetchOptions
+  text result
+
 main :: Effect Unit
 main = launchAff_ do
   let
@@ -85,9 +99,9 @@ main = launchAff_ do
   case package of
     Nothing -> log ("could not find package for module_name: " <> module_name)
     Just package_ -> do
-      url_ <- find_github_url nodeFetch (index_name package_)
+      url_ <- find_github_url nodeFetch package_
       case url_ of
         Just u -> do
-            text_ <- text =<< fetch nodeFetch (URL (u <> module_name <> ".purs")) defaultFetchOptions
-            log text_
+          text_ <- text =<< fetch nodeFetch (URL (u <> module_name <> ".purs")) defaultFetchOptions
+          log text_
         Nothing -> log "Something whent wrong"

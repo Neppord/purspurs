@@ -9,24 +9,29 @@ import PursPurs.Value (lookup_value)
 import Test.Spec (Spec, describe, it)
 import Test.Spec.Assertions (shouldEqual)
 import Data.Array (foldl) as Array
+import Effect.Aff (Aff)
+import PursPurs.Load (load_source)
 
 run_program :: Array String -> String
 run_program program = Array.foldl (\env decl -> evaluate decl env) default_env program
   # print
 
-run_module :: String -> String
-run_module program = program
-  # parse_module
-  # evaluate_module
-  <#> (\scope -> lookup_value "main" scope)
-  # maybe "error" show
+run_module :: String -> Aff String
+run_module program = do
+  let parsed_module = parse_module program
+  result <- evaluate_module {module_loader: load_source} parsed_module
+  result
+     <#> (\scope -> lookup_value "main" scope)
+     # maybe "error" show
+     # pure
 
 spec :: Spec Unit
 spec = describe "End to End tests" do
 
   describe "evaluate module" do
     it "evaluates main" do
-      run_module "module Main where\nmain = 1 " # shouldEqual "1"
+      output <- run_module "module Main where\nmain = 1 "
+      output # shouldEqual "1"
   describe "evaluate program" do
     it "handles literal" do
       run_program [ "1" ] # shouldEqual "1"

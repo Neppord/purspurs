@@ -17,10 +17,13 @@ import Data.Map.Internal (empty, singleton, union) as Map
 import PursPurs.Value (empty_scope, insert, insert_all, insert_operator, lookup_value, lookup_callable, names) as Value
 import Data.Array (foldr)
 
+type Interpreter m =
+    { module_loader :: String -> m (Maybe String)
+    }
 
-evaluate_module :: Module -> Maybe (Scope Expr)
-evaluate_module ModuleError = Nothing
-evaluate_module (Module _ declarations) = foldr
+evaluate_module ::forall m. Monad m => Interpreter m -> Module -> m (Maybe (Scope Expr))
+evaluate_module _ ModuleError = pure Nothing
+evaluate_module _ (Module _ declarations) = pure $ foldr
  (\declaration scope -> do
     scope' <- scope
     evaluate_declaration declaration scope')

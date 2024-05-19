@@ -17,6 +17,12 @@ type Scope expr =
   , operators :: Operators (Callable expr)
   }
 
+merge_scope :: forall expr. Scope expr -> Scope expr -> Scope expr
+merge_scope first second =
+  { values: Map.union first.values second.values
+  , operators: Map.union first.operators second.operators
+  }
+
 empty_scope :: forall expr. Scope expr
 empty_scope = { values: Map.empty, operators: Map.empty }
 

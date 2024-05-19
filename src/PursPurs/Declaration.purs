@@ -9,12 +9,14 @@ import PursPurs.Fixity (Fixity)
 
 data Declaration
   = DeclarationError
+  | DeclarationSignature
   | DeclarationValue String Expr
   | DeclarationFixity Fixity Int String String
   | DeclarationData String (Array (Tuple String Expr))
 
 instance Show Declaration where
   show DeclarationError = "<Error>"
+  show DeclarationSignature = "<Signature>"
   show (DeclarationFixity fixity precedence name op) =
     show fixity <> " " <> show precedence <> " " <> name <> " as " <> op
   show (DeclarationValue name value) = name <> " = " <> show value

@@ -10,7 +10,7 @@ import Data.Tuple (Tuple(Tuple), snd)
 import Data.Tuple.Nested ((/\))
 import PureScript.CST (RecoveredParserResult(ParseSucceeded), parseDecl, parseExpr, parseImportDecl, parseModule)
 import PureScript.CST.Types (IntValue(SmallInt))
-import PursPurs.Declaration (Declaration(DeclarationData, DeclarationError, DeclarationFixity, DeclarationValue))
+import PursPurs.Declaration (Declaration(DeclarationData, DeclarationError, DeclarationFixity, DeclarationSignature, DeclarationValue))
 import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, BinderVariable, BinderWildcard), Expr(..))
 import PursPurs.Fixity (Fixity(..))
 import PursPurs.Module (Module(Module, ModuleError))
@@ -166,6 +166,7 @@ parse_declaration declaration = case parseDecl declaration of
 
 declaration_from_CST :: CST.Declaration Void -> Declaration
 declaration_from_CST = case _ of
+  CST.DeclSignature _ -> DeclarationSignature
   CST.DeclFixity
     { prec: Tuple _ precedence
     , operator: CST.FixityValue

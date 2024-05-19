@@ -2,33 +2,62 @@ module Interpreter where
 
 import Prelude
 
-import Data.Maybe (Maybe(..), isNothing)
+import Data.Array (foldM, foldr)
+import Data.Identity (Identity)
+import Data.Maybe (Maybe(..), fromMaybe, isNothing)
 import Data.Tuple (Tuple(Tuple), snd)
-import Parser (parse_declaration, parse_expression)
+import Effect.Aff (Aff)
+import Parser (parse_declaration, parse_expression, parse_module)
 import PursPurs.Declaration (Declaration(..))
 import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, BinderVariable, BinderWildcard), Branches, Expr(..))
 import PursPurs.Fixity (Fixity(Infixl))
+import PursPurs.Import (Import(..))
 import PursPurs.Module (Module(Module, ModuleError))
-import PursPurs.Value (Callable(..), Scope, Value(..), Values, empty_scope, lookup_operator)
+import PursPurs.Value (Callable(..), Scope, Value(..), Values, empty_scope, lookup_operator, merge_scope)
 import Data.Array (any, catMaybes, findMap, foldr) as Array
 import Data.List (fromFoldable, singleton, (:)) as List
 import Data.List.Types (List(Nil)) as List
 import Data.Map.Internal (empty, singleton, union) as Map
-import PursPurs.Value (empty_scope, insert, insert_all, insert_operator, lookup_value, lookup_callable, names) as Value
-import Data.Array (foldr)
+import PursPurs.Value (empty_scope, insert, insert_all, insert_operator, lookup_callable, lookup_value, names) as Value
+import Debug (spy) as Deug
 
 type Interpreter m =
-    { module_loader :: String -> m (Maybe String)
-    }
+  { module_loader :: String -> m (Maybe String)
+  }
 
-evaluate_module ::forall m. Monad m => Interpreter m -> Module -> m (Maybe (Scope Expr))
+evaluate_module :: forall m. Monad m => Interpreter m -> Module -> m (Maybe (Scope Expr))
 evaluate_module _ ModuleError = pure Nothing
-evaluate_module _ (Module _ declarations) = pure $ foldr
- (\declaration scope -> do
-    scope' <- scope
-    evaluate_declaration declaration scope')
- (Just empty_scope)
- declarations
+evaluate_module interpreter (Module imports declarations) = do
+  imported_scope <- evaluate_imports interpreter imports
+  pure $ foldr
+    ( \declaration scope -> do
+        scope' <-  scope
+        evaluate_declaration declaration scope'
+    )
+    (Just imported_scope)
+    declarations
+
+evaluate_imports :: forall m. Monad m => Interpreter m -> Array Import -> m (Scope Expr)
+evaluate_imports interpreter imports = foldM
+  (\scope import_ -> evaluate_import interpreter import_ <#> merge_scope scope)
+  empty_scope
+  imports
+
+load_source_for_import :: forall m. Monad m => Interpreter m -> Import -> m (Maybe String)
+load_source_for_import { module_loader } import_ = case import_ of
+  Import name -> module_loader name
+  ImportItems name _ -> module_loader name
+  _ -> pure Nothing
+
+evaluate_import :: forall m. Monad m => Interpreter m -> Import -> m (Scope Expr)
+evaluate_import interpreter import_ = do
+  text <- load_source_for_import interpreter import_
+  case text of
+    Nothing -> pure empty_scope
+    Just source -> source
+      # parse_module
+      # evaluate_module interpreter
+      <#> fromMaybe empty_scope
 
 evaluate_call :: Callable Expr -> Value Expr -> Value Expr
 evaluate_call (CallableError msg) _ = ValueError msg
@@ -126,39 +155,39 @@ match_binder value (BinderConstructor name binders) = case value of
   _ -> Nothing
 match_binder _ (BinderError) = Just Map.empty
 
-evaluate :: String -> Scope Expr -> Scope Expr
-evaluate s env = case evaluate_declaration (parse_declaration s) env of
-    Nothing -> env # Value.insert "_" (evaluate_expr env (parse_expression s))
-    Just scope -> scope
+evaluate :: forall a. Interpreter a -> String -> Scope Expr -> Scope Expr
+evaluate i s env = case evaluate_declaration (parse_declaration s) env of
+  Nothing -> env # Value.insert "_" (evaluate_expr env (parse_expression s))
+  Just scope -> scope
 
-
-evaluate_declaration:: Declaration -> Scope Expr -> Maybe (Scope Expr)
-evaluate_declaration declaration env = case declaration of
+evaluate_declaration :: Declaration -> Scope Expr -> Maybe (Scope Expr)
+evaluate_declaration declaration scope = case declaration of
   DeclarationData _ constructors -> constructors
-    # Array.foldr (\(Tuple key expr) -> Value.insert key (evaluate_expr env expr)) env
-    # Value.insert "_" (ValueArray (constructors <#> snd <#> evaluate_expr env))
+    # Array.foldr (\(Tuple key expr) -> Value.insert key (evaluate_expr scope expr)) scope
+    # Value.insert "_" (ValueArray (constructors <#> snd <#> evaluate_expr scope))
     # Just
   DeclarationValue name expr ->
     let
-      value = evaluate_expr env expr
+      value = evaluate_expr scope expr
     in
-      env
+      scope
         # Value.insert name value
         # Value.insert "_" value
         # Just
   DeclarationFixity fixity precedence function operator_name ->
     let
-      operation = env # Value.lookup_callable function
+      operation = scope # Value.lookup_callable function
       operator =
         { operation
         , precedence
         , fixity
         }
     in
-      env
+      scope
         # Value.insert_operator operator_name operator
         # Just
 
+  DeclarationSignature -> Just scope
   DeclarationError -> Nothing
 
 print :: Scope Expr -> String
@@ -171,6 +200,12 @@ names = Value.names
 
 fn2 :: (Value Expr -> Value Expr -> Value Expr) -> Value Expr
 fn2 f = ValueCallable $ CallableForeignFn \a -> ValueCallable $ CallableForeignFn \b -> f a b
+
+in_memory_interpreter :: Interpreter Identity
+in_memory_interpreter = { module_loader: \_ -> pure Nothing }
+
+evaluate_in_memory :: String -> Scope Expr -> Scope Expr
+evaluate_in_memory expr scope = evaluate in_memory_interpreter expr scope
 
 default_env :: Scope Expr
 default_env = Value.empty_scope
@@ -190,7 +225,7 @@ default_env = Value.empty_scope
           _, _ -> ValueError "Expected Int"
       )
   # Value.insert "eq" (fn2 \x y -> ValueBoolean (x == y))
-  # evaluate "infixl 6 add as +"
-  # evaluate "infixl 6 sub as -"
-  # evaluate "infixl 7 mul as *"
-  # evaluate "infix 4 eq as =="
+  # evaluate_in_memory "infixl 6 add as +"
+  # evaluate_in_memory "infixl 6 sub as -"
+  # evaluate_in_memory "infixl 7 mul as *"
+  # evaluate_in_memory "infix 4 eq as =="

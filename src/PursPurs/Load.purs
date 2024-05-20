@@ -17,6 +17,7 @@ import Data.Array (find, last) as Array
 import Data.String.CodeUnits (drop, dropRight, take) as Data.String
 import Data.String.Common (split) as Data.String
 import Data.String.Common (replace) as String
+import Control.Monad.Maybe.Trans (MaybeT(MaybeT), runMaybeT)
 
 type Item =
   { info :: { module :: Maybe String }
@@ -81,13 +82,13 @@ index_name name =
   else name
 
 load_source :: String -> Aff (Maybe String)
-load_source module_name = do
-  package <- find_package nodeFetch module_name
-  url <- join <$> (sequence $ find_github_url nodeFetch <$> package)
+load_source module_name = runMaybeT do
+  package <- MaybeT $ find_package nodeFetch module_name
+  url <-  MaybeT $ find_github_url nodeFetch package
   let
     module_path = String.replace (Pattern ".") (Replacement "/") module_name
-    full_url = url <#> \u -> u <> module_path <> ".purs"
-  sequence (find_source <$> full_url)
+    full_url = url <> module_path <> ".purs"
+  MaybeT $ Just <$> find_source  full_url
 
 find_source :: String -> Aff String
 find_source url = do

@@ -2,24 +2,23 @@ module Interpreter where
 
 import Prelude
 
-import Data.Array (foldM, foldr)
+import Data.Array (foldM, foldr, zipWith)
 import Data.Identity (Identity)
 import Data.Maybe (Maybe(..), fromMaybe, isNothing)
 import Data.Tuple (Tuple(Tuple), snd)
-import Effect.Aff (Aff)
 import Parser (parse_declaration, parse_expression, parse_module)
 import PursPurs.Declaration (Declaration(..))
 import PursPurs.Expression (Binder(BinderConstructor, BinderError, BinderValue, BinderVariable, BinderWildcard), Branches, Expr(..))
 import PursPurs.Fixity (Fixity(Infixl))
 import PursPurs.Import (Import(..))
 import PursPurs.Module (Module(Module, ModuleError))
-import PursPurs.Value (Callable(..), Scope, Value(..), Values, empty_scope, lookup_operator, merge_scope)
+import PursPurs.Value (Callable(..), Scope, Value(..), Values, empty_scope, lookup_operator, merge_scope, merge_values)
 import Data.Array (any, catMaybes, findMap, foldr) as Array
 import Data.List (fromFoldable, singleton, (:)) as List
 import Data.List.Types (List(Nil)) as List
 import Data.Map.Internal (empty, singleton, union) as Map
 import PursPurs.Value (empty_scope, insert, insert_all, insert_operator, lookup_callable, lookup_value, names) as Value
-import Debug (spy) as Deug
+import Data.Traversable (sequence)
 
 type Interpreter m =
   { module_loader :: String -> m (Maybe String)
@@ -31,7 +30,7 @@ evaluate_module interpreter (Module imports declarations) = do
   imported_scope <- evaluate_imports interpreter imports
   pure $ foldr
     ( \declaration scope -> do
-        scope' <-  scope
+        scope' <- scope
         evaluate_declaration declaration scope'
     )
     (Just imported_scope)
@@ -135,25 +134,19 @@ contains_any_errors branches = branches # Array.any case _ of
   _ -> false
 
 match_binder :: Value Expr -> Binder -> Maybe (Values Expr)
-match_binder value (BinderVariable name) = Just (Map.singleton name value)
-match_binder _ (BinderWildcard) = Just Map.empty
-match_binder value (BinderValue value_) =
-  if value == value_ then Just Map.empty
-  else Nothing
-match_binder value (BinderConstructor name binders) = case value of
-  ValueConstructor name_ values ->
-    if name == name_ then
-      let
-        matches = match_binder <$> values <*> binders
-      in
-        if matches # Array.any isNothing then Nothing
-        else matches
-          # Array.catMaybes
-          # Array.foldr Map.union Map.empty
-          # Just
-    else Nothing
+match_binder value = case _ of
+  BinderVariable name -> Just (Map.singleton name value)
+  BinderWildcard -> Just Map.empty
+  BinderValue value_ | value == value_ -> Just Map.empty
+  BinderValue _ -> Nothing
+  BinderConstructor name binders ->  value # match_constructor_binder name binders
+  BinderError -> Just Map.empty
+
+match_constructor_binder :: String -> Array Binder -> Value Expr ->  Maybe (Values Expr)
+match_constructor_binder name binders = case _ of
+  ValueConstructor name_ values | name == name_ ->
+    zipWith match_binder values binders # sequence <#> merge_values
   _ -> Nothing
-match_binder _ (BinderError) = Just Map.empty
 
 evaluate :: forall a. Interpreter a -> String -> Scope Expr -> Scope Expr
 evaluate i s env = case evaluate_declaration (parse_declaration s) env of

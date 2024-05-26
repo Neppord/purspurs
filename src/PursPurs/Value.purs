@@ -3,7 +3,7 @@ module PursPurs.Value where
 import Prelude
 
 import Data.Map.Internal (Map)
-import Data.Array (fromFoldable, intercalate, null) as Array
+import Data.Array (foldr, fromFoldable, intercalate, null) as Array
 import Data.Map.Internal (empty, insert, lookup, union) as Map
 import Data.Maybe (fromMaybe) as Maybe
 import Data.Map (keys) as Map
@@ -16,6 +16,9 @@ type Scope expr =
   { values :: Values expr
   , operators :: Operators (Callable expr)
   }
+
+merge_values :: forall expr. Array (Values expr) -> Values expr
+merge_values = Array.foldr Map.union Map.empty
 
 merge_scope :: forall expr. Scope expr -> Scope expr -> Scope expr
 merge_scope first second =

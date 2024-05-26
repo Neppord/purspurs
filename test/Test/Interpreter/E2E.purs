@@ -93,6 +93,14 @@ spec = describe "End to End tests" do
         B b -> b
       """
         ] # shouldEqual "true"
+    it "handles session case of constructor with multiple subbinders" do
+      run_program
+        [ "data Foo = A | B Boolean Boolean"
+        , """case B true false of
+        A -> false
+        B b a -> a
+      """
+        ] # shouldEqual "false"
     it "handles 1 + 2" do
       run_program [ "1 + 2" ] # shouldEqual "3"
     it "handles 1 + 2 + 3" do

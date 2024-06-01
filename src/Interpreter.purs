@@ -13,10 +13,10 @@ import PursPurs.Fixity (Fixity(Infixl))
 import PursPurs.Import (Import(..))
 import PursPurs.Module (Module(Module, ModuleError))
 import PursPurs.Value (Callable(..), Scope, Value(..), Values, empty_scope, lookup_operator, merge_scope, merge_values)
-import Data.Array (any, catMaybes, findMap, foldr) as Array
+import Data.Array (any, findMap, foldr) as Array
 import Data.List (fromFoldable, singleton, (:)) as List
 import Data.List.Types (List(Nil)) as List
-import Data.Map.Internal (empty, singleton, union) as Map
+import Data.Map.Internal (empty, singleton) as Map
 import PursPurs.Value (empty_scope, insert, insert_all, insert_operator, lookup_callable, lookup_value, names) as Value
 import Data.Traversable (sequence)
 
@@ -139,10 +139,10 @@ match_binder value = case _ of
   BinderWildcard -> Just Map.empty
   BinderValue value_ | value == value_ -> Just Map.empty
   BinderValue _ -> Nothing
-  BinderConstructor name binders ->  value # match_constructor_binder name binders
+  BinderConstructor name binders -> value # match_constructor_binder name binders
   BinderError -> Just Map.empty
 
-match_constructor_binder :: String -> Array Binder -> Value Expr ->  Maybe (Values Expr)
+match_constructor_binder :: String -> Array Binder -> Value Expr -> Maybe (Values Expr)
 match_constructor_binder name binders = case _ of
   ValueConstructor name_ values | name == name_ ->
     zipWith match_binder values binders # sequence <#> merge_values
@@ -159,26 +159,18 @@ evaluate_declaration declaration scope = case declaration of
     # Array.foldr (\(Tuple key expr) -> Value.insert key (evaluate_expr scope expr)) scope
     # Value.insert "_" (ValueArray (constructors <#> snd <#> evaluate_expr scope))
     # Just
-  DeclarationValue name expr ->
-    let
-      value = evaluate_expr scope expr
-    in
-      scope
-        # Value.insert name value
-        # Value.insert "_" value
-        # Just
-  DeclarationFixity fixity precedence function operator_name ->
-    let
-      operation = scope # Value.lookup_callable function
-      operator =
-        { operation
-        , precedence
-        , fixity
-        }
-    in
-      scope
-        # Value.insert_operator operator_name operator
-        # Just
+  DeclarationValue name expr -> do
+    let value = evaluate_expr scope expr
+    scope
+      # Value.insert name value
+      # Value.insert "_" value
+      # Just
+  DeclarationFixity fixity precedence function operator_name -> do
+    let operation = scope # Value.lookup_callable function
+    let operator = { operation, precedence, fixity }
+    scope
+      # Value.insert_operator operator_name operator
+      # Just
 
   DeclarationSignature -> Just scope
   DeclarationError -> Nothing
